@@ -43,7 +43,8 @@ app.use(securityHeaders());
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: false }));
 
-app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001', process.env.FRONTEND_URL].filter(Boolean), credentials: true }));
+app.use(cors({ origin: corsOrigin, credentials: true }));
+app.options('*', cors({ origin: corsOrigin, credentials: true }));
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
