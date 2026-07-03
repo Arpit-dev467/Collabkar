@@ -9,7 +9,7 @@ import {
   updateUserProfile,
   verifyEmail,
 } from '../auth.js';
-import { oauthCallback, oauthStart } from '../oauth/handlers.js';
+import { oauthCallback, oauthStart, oauthComplete } from '../oauth/handlers.js';
 import { oauthExchange } from '../oauth/handlers.js';
 
 const router = express.Router();
@@ -108,5 +108,6 @@ router.post('/resend-verification', authLimiter, async (req, res) => {
 router.get('/oauth/:provider/start', oauthStart);
 router.all('/oauth/:provider/callback', oauthCallback);
 router.post('/oauth/exchange', async (req, res) => oauthExchange(req, res));
+router.post('/oauth/complete', async (req, res) => oauthComplete(req, res));
 
 export default router;

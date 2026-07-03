@@ -605,3 +605,53 @@ export async function findOrCreateOAuthUser({ provider, providerId, email }) {
   const jwtToken = issueToken({ sub: user.id, role: user.role, email: user.email });
   return { ok: true, status: 200, token: jwtToken, user: publicUser(user) };
 }
+
+export async function getUserByEmail(email) {
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  if (!EMAIL_REGEX.test(normalizedEmail)) return null;
+  const users = await readUsers();
+  const user = users.find((u) => u.email === normalizedEmail);
+  return user || null;
+}
+
+export async function createOAuthUser({ provider, providerId, email, role }) {
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const normalizedRole = typeof role === 'string' ? role.trim().toLowerCase() : '';
+  if (!EMAIL_REGEX.test(normalizedEmail)) return { ok: false, status: 400, error: 'Invalid email address.' };
+  if (normalizedRole !== 'creator' && normalizedRole !== 'brand') return { ok: false, status: 400, error: 'Role must be creator or brand.' };
+
+  const users = await readUsers();
+  const exists = users.some((u) => u.email === normalizedEmail);
+  if (exists) return { ok: false, status: 409, error: 'User already exists.' };
+
+  const user = {
+    id: crypto.randomUUID(),
+    email: normalizedEmail,
+    role: normalizedRole,
+    passwordHash: '',
+    isEmailVerified: true,
+    oauth: {},
+    emailVerificationTokenHash: '',
+    emailVerificationExpiresAt: '',
+    profile: {
+      ...buildDefaultProfile(normalizedRole),
+      displayName: normalizedEmail.split('@')[0],
+    },
+    onboarding: {
+      ...buildDefaultOnboarding(normalizedRole),
+      signupSource: provider,
+      profileCompletion: 20,
+    },
+    createdAt: new Date().toISOString(),
+  };
+
+  if (provider === 'google') user.oauth.googleSub = String(providerId);
+  if (provider === 'facebook') user.oauth.facebookId = String(providerId);
+  if (provider === 'apple') user.oauth.appleSub = String(providerId);
+
+  users.push(user);
+  await writeUsers(users);
+
+  const jwtToken = issueToken({ sub: user.id, role: user.role, email: user.email });
+  return { ok: true, status: 201, token: jwtToken, user: publicUser(user) };
+}

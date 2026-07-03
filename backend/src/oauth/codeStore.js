@@ -7,9 +7,9 @@ function base64Url(buffer) {
   return Buffer.from(buffer).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-export function createAuthCode({ token }) {
+export function createAuthCode({ token = null, pending = null } = {}) {
   const code = base64Url(crypto.randomBytes(24));
-  store.set(code, { token, expiresAt: Date.now() + CODE_TTL_MS });
+  store.set(code, { token, pending, expiresAt: Date.now() + CODE_TTL_MS });
   return code;
 }
 

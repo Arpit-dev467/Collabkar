@@ -1,4 +1,4 @@
-import { findOrCreateOAuthUser } from '../auth.js';
+import { findOrCreateOAuthUser, getUserByEmail, createOAuthUser } from '../auth.js';
 import { verifyJwtRs256 } from './jwtVerify.js';
 import { consumeAuthCode, createAuthCode } from './codeStore.js';
 import { consumeState, createState, pkceChallenge, sanitizeRedirect } from './stateStore.js';
@@ -142,15 +142,42 @@ export async function oauthCallback(req, res) {
       providerId = String(payload?.sub || '');
     }
 
-    const result = await findOrCreateOAuthUser({ provider, providerId, email });
-    if (!result.ok) return res.status(result.status).json({ ok: false, error: result.error });
-
+    // If user already exists, update their oauth fields and issue a token immediately.
+    const existing = await getUserByEmail(email);
     const appBaseUrl = getAppBaseUrl();
     const redirectTo = encodeURIComponent(stateEntry.redirectTo || '/dashboard');
-    const authCode = createAuthCode({ token: result.token });
-    return res.redirect(`${appBaseUrl}/auth/callback?code=${encodeURIComponent(authCode)}&redirect=${redirectTo}`);
+
+    if (existing) {
+      const result = await findOrCreateOAuthUser({ provider, providerId, email });
+      if (!result.ok) return res.status(result.status).json({ ok: false, error: result.error });
+      const authCode = createAuthCode({ token: result.token });
+      return res.redirect(`${appBaseUrl}/auth/callback?code=${encodeURIComponent(authCode)}&redirect=${redirectTo}`);
+    }
+
+    // New user: create a pending auth entry and redirect to frontend role-selection before creating the account.
+    const pendingCode = createAuthCode({ pending: { provider, providerId, email } });
+    return res.redirect(`${appBaseUrl}/onboarding/role?code=${encodeURIComponent(pendingCode)}&redirect=${redirectTo}`);
   } catch (error) {
     return res.status(400).json({ ok: false, error: 'OAuth login failed.' });
+  }
+}
+
+export async function oauthComplete(req, res) {
+  try {
+    const { code, role } = req.body ?? {};
+    if (!code || !role) return res.status(400).json({ ok: false, error: 'Missing code or role.' });
+
+    const entry = consumeAuthCode(code);
+    if (!entry || !entry.pending) return res.status(400).json({ ok: false, error: 'Invalid or expired code.' });
+
+    const { provider, providerId, email } = entry.pending;
+    // Create the user now with the chosen role
+    const creation = await createOAuthUser({ provider, providerId, email, role });
+    if (!creation.ok) return res.status(400).json({ ok: false, error: creation.error });
+
+    return res.json({ ok: true, token: creation.token });
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: 'Failed to complete OAuth signup.' });
   }
 }
 
