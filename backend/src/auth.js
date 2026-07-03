@@ -434,28 +434,79 @@ function createEmailVerificationToken() {
   return { token, tokenHash, expiresAt };
 }
 
+function buildEmailVerificationHtml(verificationLink) {
+  return `<!doctype html>
+<html>
+  <body style="font-family:Arial,Helvetica,sans-serif;color:#111;margin:0;padding:0;">
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+      <tr>
+        <td align="center" style="padding:32px 16px;">
+          <table width="100%" max-width="600" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 0 20px rgba(0,0,0,.08);">
+            <tr>
+              <td style="padding:32px;">
+                <h1 style="margin:0 0 16px;font-size:24px;color:#111;">Verify your CollabKar account</h1>
+                <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#333;">Click the button below to confirm your email address and finish setting up your account.</p>
+                <p style="margin:0 0 32px;">
+                  <a href="${verificationLink}" style="display:inline-block;padding:14px 24px;background:#0e74ff;color:#ffffff;text-decoration:none;border-radius:8px;font-size:16px;">Verify email</a>
+                </p>
+                <p style="margin:0;font-size:14px;line-height:1.6;color:#666;">If the button does not work, paste this link into your browser:</p>
+                <p style="word-break:break-all;font-size:14px;color:#0e74ff;margin:8px 0 0;">${verificationLink}</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
 async function sendEmailVerification({ email, verificationToken }) {
   const link = `${getAppBaseUrl()}/verify-email?token=${encodeURIComponent(verificationToken)}`;
-  const webhookUrl = process.env.AUTH_EMAIL_WEBHOOK_URL;
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const resendFromEmail = process.env.RESEND_FROM_EMAIL;
 
-  if (webhookUrl) {
+  if (resendApiKey && resendFromEmail) {
     try {
-      // Let the user plug in their own mailer without paid providers (e.g., local bridge).
-      await fetch(webhookUrl, {
+      await fetch('https://api.resend.com/emails', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${resendApiKey}`,
+        },
         body: JSON.stringify({
-          type: 'email_verification',
+          from: resendFromEmail,
           to: email,
-          subject: 'Verify your email',
-          verificationLink: link,
+          subject: 'Verify your CollabKar account',
+          html: buildEmailVerificationHtml(link),
         }),
       });
       return;
-    } catch {
-      // Fall through to console output.
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[auth] Resend email failed:', error?.message || error);
     }
   }
+
+  // Legacy webhook-based email delivery is deprecated in favor of Resend.
+  // const webhookUrl = process.env.AUTH_EMAIL_WEBHOOK_URL;
+  // if (webhookUrl) {
+  //   try {
+  //     await fetch(webhookUrl, {
+  //       method: 'POST',
+  //       headers: { 'content-type': 'application/json' },
+  //       body: JSON.stringify({
+  //         type: 'email_verification',
+  //         to: email,
+  //         subject: 'Verify your email',
+  //         verificationLink: link,
+  //       }),
+  //     });
+  //     return;
+  //   } catch {
+  //     // Fall through to console output.
+  //   }
+  // }
 
   // eslint-disable-next-line no-console
   console.log(`[auth] Email verification for ${email}: ${link}`);
