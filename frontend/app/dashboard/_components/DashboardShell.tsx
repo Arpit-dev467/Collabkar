@@ -57,11 +57,11 @@ export default function DashboardShell({
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_10%_10%,#eef1ff_0%,#f7f7f7_40%,#f6f7fb_100%)] text-[#0B0B0F]">
-      <div className="mx-auto flex max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <aside className="hidden w-72 shrink-0 md:block">
-          <div className="sticky top-6 rounded-2xl border border-black/10 bg-white/70 p-4 shadow-[0_18px_45px_rgba(30,45,122,0.08)] backdrop-blur">
-            <Link href="/" className="mb-4 flex items-center justify-center rounded-2xl border border-black/5 bg-white/70 px-4 py-3">
+    <div className="min-h-screen bg-[#f3f5f2] text-[#17221d]">
+      <div className="mx-auto flex max-w-[1600px] gap-5 px-4 py-4 sm:px-6 lg:px-8">
+        <aside className="hidden w-64 shrink-0 md:block">
+          <div className="sticky top-4 flex min-h-[calc(100vh-2rem)] flex-col rounded-xl border border-[#dfe5df] bg-white p-4 shadow-[0_8px_30px_rgba(23,34,29,0.04)]">
+            <Link href="/" className="mb-6 flex items-center justify-center rounded-lg bg-[#f6f8f5] px-4 py-3">
               <Image
                 src="/bg-removed.png"
                 alt="Collabkar logo"
@@ -71,75 +71,72 @@ export default function DashboardShell({
                 priority
               />
             </Link>
-            <div className="flex items-center justify-between gap-3 px-2 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#3F5AE0] text-sm font-semibold text-white shadow-[0_12px_25px_rgba(63,90,224,0.32)]">
+            <div className="flex items-center gap-3 border-b border-[#edf0ec] px-1 pb-5">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#edf0ff] text-sm font-semibold text-[#2e43b7]">
                   {initials(user.email)}
-                </div>
-                <div>
-                  <div className="text-sm font-semibold leading-tight">{accountLabel(user)}</div>
-                  <div className="text-xs text-gray-500">{user.email ?? 'admin'}</div>
-                  <div className="text-xs text-gray-500">
-                    {user.role === 'creator' ? 'Creator account' : user.role === 'brand' ? 'Brand account' : 'Admin'}
-                  </div>
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold leading-tight">{accountLabel(user)}</div>
+                <div className="mt-1 truncate text-xs text-[#77817a]">{user.email ?? 'admin'}</div>
+                <div className="mt-2 inline-flex rounded-md bg-[#f1f4f0] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#58645b]">
+                  {user.role} workspace
                 </div>
               </div>
-              <button
-                onClick={logout}
-                className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs text-gray-700 hover:border-black/20"
-              >
-                Log out
-              </button>
             </div>
 
-            <nav className="space-y-1">
+            <nav aria-label="Dashboard navigation" className="mt-5 space-y-1">
               {navItems.map((item) => {
                 const active = pathname === item.href;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm transition ${
+                    aria-current={active ? 'page' : undefined}
+                    className={`flex items-center justify-between rounded-lg border-l-2 px-3 py-2.5 text-sm transition-colors ${
                       active
-                        ? 'bg-[#3F5AE0]/10 text-[#2E43B7]'
-                        : 'text-gray-700 hover:bg-black/5'
+                        ? 'border-[#3f5ae0] bg-[#f0f2ff] font-semibold text-[#2e43b7]'
+                        : 'border-transparent text-[#58645b] hover:bg-[#f5f7f4]'
                     }`}
                   >
                     <span className="font-medium">{item.label}</span>
-                    {active && <span className="h-2 w-2 rounded-full bg-[#3F5AE0]" />}
+                    {active && <span className="text-xs font-semibold">Current</span>}
                   </Link>
                 );
               })}
             </nav>
 
-            <div className="mt-4 rounded-2xl border border-[#3F5AE0]/20 bg-[#3F5AE0]/10 p-4">
-              <div className="text-xs font-semibold uppercase tracking-wider text-[#2E43B7]">Quick Tip</div>
-              <div className="mt-2 text-sm text-gray-700">
-                Use the sidebar to switch dashboards. Admin can access both Creator + Brand views.
-              </div>
+            <div className="mt-auto border-t border-[#edf0ec] pt-4">
+              <button
+                onClick={logout}
+                className="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-[#667168] transition-colors hover:bg-[#f5f7f4] hover:text-[#17221d]"
+              >
+                Log out
+              </button>
             </div>
           </div>
         </aside>
 
         <div className="min-w-0 flex-1">
-          <header className="rounded-2xl border border-black/10 bg-white/70 p-4 shadow-[0_18px_45px_rgba(30,45,122,0.08)] backdrop-blur">
+          <header className="rounded-xl border border-[#dfe5df] bg-white px-5 py-4 shadow-[0_8px_30px_rgba(23,34,29,0.04)] sm:px-6">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-xs uppercase tracking-[0.22em] text-gray-500">Dashboard</div>
-                <h1 className="mt-1 text-2xl font-semibold">{title}</h1>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#77817a]">Workspace / {user.role}</div>
+                <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
               </div>
 
               <div className="flex items-center gap-2">
                 <Link
                   href="/"
-                  className="hidden rounded-xl border border-black/10 bg-white px-4 py-2 text-sm text-gray-700 hover:border-black/20 sm:inline-flex"
+                  className="hidden rounded-lg border border-[#dfe5df] bg-white px-3.5 py-2 text-sm font-medium text-[#58645b] transition-colors hover:bg-[#f5f7f4] sm:inline-flex"
                 >
                   Home
                 </Link>
 
                 <button
                   onClick={() => setMobileNavOpen((s) => !s)}
-                  className="inline-flex items-center justify-center rounded-xl border border-black/10 bg-white px-4 py-2 text-sm text-gray-700 hover:border-black/20 md:hidden"
+                  aria-expanded={mobileNavOpen}
+                  aria-label={mobileNavOpen ? 'Close dashboard menu' : 'Open dashboard menu'}
+                  className="inline-flex items-center justify-center rounded-lg border border-[#dfe5df] bg-white px-3.5 py-2 text-sm font-medium text-[#58645b] hover:bg-[#f5f7f4] md:hidden"
                 >
                   Menu
                 </button>
@@ -147,7 +144,7 @@ export default function DashboardShell({
             </div>
 
             {mobileNavOpen && (
-              <div className="mt-4 rounded-xl border border-black/10 bg-white p-2 md:hidden">
+              <div className="mt-4 rounded-lg border border-[#dfe5df] bg-[#fafbf9] p-2 md:hidden">
                 <div className="flex items-center justify-between gap-3 px-2 py-2">
                   <div className="text-sm text-gray-700">Signed in as</div>
                   <div className="text-sm font-medium">{accountLabel(user)}</div>
@@ -158,14 +155,15 @@ export default function DashboardShell({
                       key={item.href}
                       href={item.href}
                       onClick={() => setMobileNavOpen(false)}
-                      className="rounded-lg border border-black/10 bg-white px-3 py-2 text-center text-sm text-gray-700 hover:border-black/20"
+                      aria-current={pathname === item.href ? 'page' : undefined}
+                      className={`rounded-md border px-3 py-2 text-center text-sm ${pathname === item.href ? 'border-[#cbd2ff] bg-[#f0f2ff] font-semibold text-[#2e43b7]' : 'border-[#e4e9e3] bg-white text-[#58645b]'}`}
                     >
                       {item.label}
                     </Link>
                   ))}
                   <button
                     onClick={logout}
-                    className="col-span-2 rounded-lg bg-[#0B0B0F] px-3 py-2 text-sm text-white"
+                    className="col-span-2 rounded-md bg-[#263b2c] px-3 py-2 text-sm text-white"
                   >
                     Log out
                   </button>
@@ -174,7 +172,7 @@ export default function DashboardShell({
             )}
           </header>
 
-          <main className="mt-6">{children}</main>
+          <main className="mt-5">{children}</main>
         </div>
       </div>
     </div>

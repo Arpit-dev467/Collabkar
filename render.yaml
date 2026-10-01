@@ -7,8 +7,18 @@ services:
     dockerContext: .
     healthCheckPath: /health
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: AUTH_JWT_SECRET
         generateValue: true
+      - key: MONGODB_URI
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
       - key: CORS_ORIGIN
         sync: false
       - key: AUTH_USERS_FILE_PATH

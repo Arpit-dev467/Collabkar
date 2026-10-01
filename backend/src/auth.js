@@ -9,6 +9,7 @@ import { User } from './models/User.js';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const HANDLE_REGEX = /^[a-zA-Z0-9._-]{1,50}$/;
 const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/i;
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('not-a-valid-user-password', 10);
 
 function getUsersFilePath() {
   return (
@@ -18,7 +19,11 @@ function getUsersFilePath() {
 }
 
 function getJwtSecret() {
-  return process.env.AUTH_JWT_SECRET || 'dev-secret-change-me';
+  const secret = process.env.AUTH_JWT_SECRET;
+  if (process.env.NODE_ENV === 'production' && (!secret || secret.length < 32)) {
+    throw new Error('AUTH_JWT_SECRET must contain at least 32 characters in production.');
+  }
+  return secret || 'dev-secret-change-me';
 }
 
 function getJwtExpiresIn() {
@@ -30,7 +35,8 @@ function getPasswordPepper() {
 }
 
 function isDevAdminLoginEnabled() {
-  return String(process.env.AUTH_ALLOW_DEV_ADMIN_LOGIN || '').toLowerCase() === 'true';
+  return process.env.NODE_ENV !== 'production' &&
+    String(process.env.AUTH_ALLOW_DEV_ADMIN_LOGIN || '').toLowerCase() === 'true';
 }
 
 function getAppBaseUrl() {
@@ -62,8 +68,9 @@ function isMongoAuthAvailable() {
 
 function toPlainUser(user) {
   if (!user) return null;
-  if (typeof user.toObject === 'function') return user.toObject();
-  return user;
+  const plain = typeof user.toObject === 'function' ? user.toObject() : { ...user };
+  delete plain._id;
+  return plain;
 }
 
 function normalizeText(value, maxLen = 120) {
@@ -280,8 +287,11 @@ export async function signup({ email, password, role, profile: rawProfile }) {
   if (!EMAIL_REGEX.test(normalizedEmail)) {
     return { ok: false, status: 400, error: 'Invalid email address.' };
   }
-  if (rawPassword.length < 6) {
-    return { ok: false, status: 400, error: 'Password must be at least 6 characters.' };
+  if (Array.from(rawPassword).length < 12) {
+    return { ok: false, status: 400, error: 'Password must be at least 12 characters.' };
+  }
+  if (Buffer.byteLength(`${rawPassword}${getPasswordPepper()}`, 'utf8') > 72) {
+    return { ok: false, status: 400, error: 'Password is too long.' };
   }
   if (normalizedRole !== 'creator' && normalizedRole !== 'brand') {
     return { ok: false, status: 400, error: 'Role must be creator or brand.' };
@@ -322,7 +332,7 @@ export async function signup({ email, password, role, profile: rawProfile }) {
   user.emailVerificationExpiresAt = expiresAt;
 
   await writeUsers([...users, user]);
-  await sendEmailVerification({
+  const verificationEmailSent = await sendEmailVerification({
     email: user.email,
     verificationToken: token,
   });
@@ -333,6 +343,7 @@ export async function signup({ email, password, role, profile: rawProfile }) {
     token: null,
     user: publicUser(user),
     requiresEmailVerification: true,
+    verificationEmailSent,
   };
 }
 
@@ -352,7 +363,16 @@ export async function login({ identifier, password }) {
 
   const users = await readUsers();
   const user = users.find((u) => u.email === email);
-  if (!user) return { ok: false, status: 401, error: 'Invalid credentials.' };
+  const passwordHash = user?.passwordHash || DUMMY_PASSWORD_HASH;
+  const pepperedPassword = `${rawPassword}${getPasswordPepper()}`;
+  const passwordTooLong = Buffer.byteLength(pepperedPassword, 'utf8') > 72;
+  const passwordMatches = await bcrypt.compare(
+    passwordTooLong ? 'invalid-password-exceeds-bcrypt-limit' : pepperedPassword,
+    passwordHash
+  );
+  if (!user || !user.passwordHash || passwordTooLong || !passwordMatches) {
+    return { ok: false, status: 401, error: 'Invalid credentials.' };
+  }
 
   if (!user.isEmailVerified) {
     return {
@@ -362,10 +382,6 @@ export async function login({ identifier, password }) {
       requiresEmailVerification: true,
     };
   }
-
-  const pepperedPassword = `${rawPassword}${getPasswordPepper()}`;
-  const ok = await bcrypt.compare(pepperedPassword, user.passwordHash);
-  if (!ok) return { ok: false, status: 401, error: 'Invalid credentials.' };
 
   const token = issueToken({ sub: user.id, role: user.role, email: user.email });
   return { ok: true, status: 200, token, user: publicUser(user) };
@@ -468,7 +484,7 @@ async function sendEmailVerification({ email, verificationToken }) {
 
   if (resendApiKey && resendFromEmail) {
     try {
-      await fetch('https://api.resend.com/emails', {
+      const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -480,36 +496,27 @@ async function sendEmailVerification({ email, verificationToken }) {
           subject: 'Verify your CollabKar account',
           html: buildEmailVerificationHtml(link),
         }),
+        signal: AbortSignal.timeout(10_000),
       });
-      return;
+      if (!response.ok) {
+        console.error(`[auth] Resend returned HTTP ${response.status}.`);
+        return false;
+      }
+      return true;
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('[auth] Resend email failed:', error?.message || error);
+      return false;
     }
   }
 
-  // Legacy webhook-based email delivery is deprecated in favor of Resend.
-  // const webhookUrl = process.env.AUTH_EMAIL_WEBHOOK_URL;
-  // if (webhookUrl) {
-  //   try {
-  //     await fetch(webhookUrl, {
-  //       method: 'POST',
-  //       headers: { 'content-type': 'application/json' },
-  //       body: JSON.stringify({
-  //         type: 'email_verification',
-  //         to: email,
-  //         subject: 'Verify your email',
-  //         verificationLink: link,
-  //       }),
-  //     });
-  //     return;
-  //   } catch {
-  //     // Fall through to console output.
-  //   }
-  // }
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[auth] Email verification delivery is not configured.');
+    return false;
+  }
 
-  // eslint-disable-next-line no-console
   console.log(`[auth] Email verification for ${email}: ${link}`);
+  return true;
 }
 
 function isExpired(iso) {

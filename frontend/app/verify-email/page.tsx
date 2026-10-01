@@ -14,10 +14,13 @@ function VerifyEmailContent() {
 
   const token = searchParams.get('token') || '';
   const initialEmail = searchParams.get('email') || '';
+  const deliveryFailed = searchParams.get('sent') === 'false';
 
   const [email, setEmail] = useState(initialEmail);
   const [status, setStatus] = useState<'idle' | 'verifying' | 'verified' | 'error'>('idle');
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(
+    deliveryFailed ? 'Your account was created, but we could not send the verification email. Please try again below.' : null
+  );
   const [resending, setResending] = useState(false);
 
   const canVerify = useMemo(() => Boolean(token), [token]);
@@ -53,7 +56,7 @@ function VerifyEmailContent() {
     setResending(true);
     try {
       await resendVerification(email);
-      setMessage('Verification email sent. Check your inbox.');
+      setMessage('If an unverified account exists for that address, a verification email will arrive shortly.');
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Failed to resend');
     } finally {

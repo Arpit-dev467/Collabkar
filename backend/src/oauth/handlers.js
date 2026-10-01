@@ -116,6 +116,9 @@ export async function oauthCallback(req, res) {
         audience: process.env.GOOGLE_CLIENT_ID,
       });
 
+      if (payload?.email_verified !== true && payload?.email_verified !== 'true') {
+        throw new Error('google_email_not_verified');
+      }
       email = String(payload?.email || '');
       providerId = String(payload?.sub || '');
     }
@@ -138,6 +141,9 @@ export async function oauthCallback(req, res) {
         audience: process.env.APPLE_CLIENT_ID,
       });
 
+      if (payload?.email_verified !== true && payload?.email_verified !== 'true') {
+        throw new Error('apple_email_not_verified');
+      }
       email = String(payload?.email || '');
       providerId = String(payload?.sub || '');
     }

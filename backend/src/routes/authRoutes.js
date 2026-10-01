@@ -27,8 +27,12 @@ router.post('/signup', authLimiter, async (req, res) => {
       token: result.token,
       user: result.user,
       requiresEmailVerification: Boolean(result.requiresEmailVerification),
+      verificationEmailSent: result.verificationEmailSent !== false,
     });
-  } catch {
+  } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(409).json({ ok: false, error: 'User already exists.' });
+    }
     return res.status(500).json({ ok: false, error: 'Unexpected error during signup.' });
   }
 });

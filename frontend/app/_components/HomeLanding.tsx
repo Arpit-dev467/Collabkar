@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import type { ReactNode } from 'react';
 import { useRef } from 'react';
@@ -218,118 +219,133 @@ const testimonials: Testimonial[] = [
 
 const faqItems = [
   {
-    question: 'Can this support both brands and creator managers?',
-    answer: 'Yes. The longer page now explains discovery, comparison, workflow, and launch readiness in a way that speaks to both sides of the collaboration.',
+    question: 'How do brands find creators on Collabkar?',
+    answer: 'Browse creator profiles or use AI-assisted matching with a campaign brief. You can narrow discovery by factors like niche, platform, location, and budget, then review profiles before building a shortlist.',
   },
   {
-    question: 'Will the animations hurt responsiveness?',
-    answer: 'The motion is based on transforms and in-view triggers, with reduced-motion support so the experience stays smooth and accessible.',
+    question: 'Can creators use Collabkar too?',
+    answer: 'Yes. Creator accounts can build a profile, add social channels, and view active campaigns from the creator dashboard.',
   },
   {
-    question: 'Can the new sections be swapped for product screenshots later?',
-    answer: 'Absolutely. The structure is intentionally modular, so each content block can be replaced with real demos, analytics, case studies, or campaign media.',
+    question: 'Are AI pricing estimates guaranteed creator rates?',
+    answer: 'No. Treat estimates as a planning guide. Confirm final pricing, deliverables, and terms directly with each creator before launching a campaign.',
+  },
+  {
+    question: 'Can I pay for a plan on the website today?',
+    answer: 'Not yet. The plans shown on the pricing page are demo pricing, and billing is not connected in the current product.',
   },
 ];
 
-function HeroSection({ reduceMotion }: { reduceMotion: boolean }) {
-  const ref = useRef<HTMLElement | null>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] });
-  const headlineY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [0, 110]);
-  const headlineOpacity = useTransform(scrollYProgress, [0, 0.75], [1, 0.25]);
-  const panelY = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [0, -70]);
-  const panelRotate = useTransform(scrollYProgress, [0, 1], reduceMotion ? [0, 0] : [0, -4]);
+function HeroSection() {
+  const creators = [
+    { image: '/avatars/priya.svg', category: 'Beauty & skincare', platform: 'Instagram' },
+    { image: '/avatars/meera.svg', category: 'Lifestyle', platform: 'YouTube' },
+    { image: '/avatars/rohit.svg', category: 'Food & culture', platform: 'Instagram' },
+  ];
 
   return (
-    <motion.section ref={ref} className="overflow-hidden pt-8 sm:pt-14 lg:pt-20" id="platform">
+    <section className="relative isolate overflow-hidden bg-[#f4f6f1] pb-12 pt-12 sm:pb-16 sm:pt-16 lg:pb-20 lg:pt-20" id="platform">
+      <div aria-hidden="true" className="pointer-events-none absolute left-[3%] top-32 hidden h-24 w-24 rounded-full border-[10px] border-[#c9ddc8] lg:block" />
+      <div aria-hidden="true" className="pointer-events-none absolute right-[5%] top-44 hidden h-14 w-14 rotate-12 rounded-2xl border-2 border-[#dfbd58] lg:block" />
+      <div aria-hidden="true" className="pointer-events-none absolute left-[14%] top-[27%] hidden h-8 w-8 -rotate-12 rounded-lg border-2 border-[#3f5ae0]/50 lg:block" />
+      <div aria-hidden="true" className="pointer-events-none absolute right-[14%] top-[51%] hidden h-3 w-16 rotate-[24deg] rounded-full bg-[#d8e6d4] lg:block" />
+      <div aria-hidden="true" className="pointer-events-none absolute bottom-28 left-[10%] hidden grid-cols-3 gap-2 lg:grid">
+        {Array.from({ length: 9 }, (_, index) => (
+          <span key={index} className={`h-1.5 w-1.5 rounded-full ${index % 2 === 0 ? 'bg-[#3f5ae0]/50' : 'bg-[#a8bea7]'}`} />
+        ))}
+      </div>
       <Container>
-        <div className="grid gap-12 lg:grid-cols-[minmax(0,1.05fr)_minmax(420px,0.95fr)] lg:items-center lg:gap-16">
-          <motion.div style={{ y: headlineY, opacity: headlineOpacity }} className="max-w-3xl">
-            <div className="inline-flex max-w-full rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-medium text-gray-600 shadow-sm sm:text-sm">
-              AI-powered creator collaboration for modern brand teams
+        <div className="mx-auto max-w-4xl text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#496b52] sm:text-sm">
+            The creator campaign platform
+          </p>
+          <h1 className="mx-auto mt-5 max-w-[16ch] text-[clamp(2rem,6vw,4.5rem)] font-semibold leading-[1.06] text-[#17241b] [text-wrap:balance]">
+            Creator campaigns, made simple.
+          </h1>
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-[#5d685f] sm:mt-6 sm:text-lg sm:leading-8">
+            Find the right creators, understand audience fit and pricing, and manage campaigns from one clear workspace.
+          </p>
+          <div className="mt-7 flex flex-col justify-center gap-3 sm:mt-8 sm:flex-row">
+            <Link
+              href="/signup"
+              className="inline-flex min-h-12 items-center justify-center rounded-lg bg-[#243b2b] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#172a1d]"
+            >
+              Create your account
+            </Link>
+            <Link
+              href="/creators"
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-[#cbd5ca] bg-white px-6 py-3 text-sm font-semibold text-[#26362a] transition-colors hover:bg-[#f9fbf8]"
+            >
+              Browse creators
+            </Link>
+          </div>
+        </div>
+
+        <div
+          aria-label="Sample Collabkar campaign workspace preview"
+          className="mx-auto mt-10 max-w-6xl overflow-hidden rounded-xl border border-[#dce3db] bg-white text-left shadow-[0_24px_60px_rgba(33,53,38,0.10)] sm:mt-14"
+        >
+          <div className="flex min-h-14 items-center justify-between gap-4 border-b border-[#e8ede7] px-4 sm:px-6">
+            <div className="flex min-w-0 items-center gap-4">
+              <Image src="/bg-removed.png" alt="Collabkar" width={130} height={38} className="h-7 w-auto shrink-0" />
+              <span className="hidden h-6 border-l border-[#e8ede7] sm:block" />
+              <span className="hidden truncate text-xs text-[#7a857c] sm:block">Campaigns / Spring skincare launch</span>
             </div>
-            <h1 className="mt-6 max-w-4xl text-[2.9rem] font-semibold leading-[0.98] tracking-[-0.07em] text-gray-900 sm:mt-8 sm:text-[4.25rem] lg:text-[5.5rem]">
-              Find, match, and manage creators - without the chaos.
-            </h1>
-            <p className="mt-6 max-w-2xl text-base leading-7 text-gray-600 sm:mt-8 sm:text-xl sm:leading-8">
-              Collabkar is the creator marketplace where brands discover micro-influencers, estimate campaign pricing, and move from brief to shortlist in one clean workflow - powered by offline AI.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:mt-10 sm:flex-row sm:gap-4">
-              <Link
-                href="/signup"
-                className="inline-flex min-h-14 items-center justify-center rounded-full bg-gray-900 px-6 py-4 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(17,24,39,0.14)] transition hover:bg-black sm:px-7"
-              >
-                Start for free
-              </Link>
-              <Link
-                href="/creators"
-                className="inline-flex min-h-14 items-center justify-center rounded-full border border-gray-200 bg-white px-6 py-4 text-sm font-semibold text-gray-900 transition hover:bg-gray-50 sm:px-7"
-              >
-                Browse creator profiles
-              </Link>
+            <div className="flex shrink-0 items-center gap-3">
+              <span className="hidden items-center gap-1.5 text-xs font-medium text-[#526356] sm:inline-flex">
+                <span className="h-2 w-2 rounded-full bg-[#4b9861]" />
+                In progress
+              </span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#edf0ff] text-[11px] font-semibold text-[#3449b5]">MK</span>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div style={{ y: panelY, rotate: panelRotate }} className="relative w-full min-w-0">
-            <div className="absolute inset-x-6 top-10 -z-10 h-56 rounded-full bg-[radial-gradient(circle,#dbeafe_0%,rgba(219,234,254,0)_72%)] blur-3xl sm:inset-x-10 sm:h-64" />
-            <div className="rounded-[28px] border border-gray-100 bg-[#fafafa] p-3 shadow-[0_28px_90px_rgba(15,23,42,0.08)] sm:rounded-[32px] sm:p-6">
-              <div className="overflow-hidden rounded-[24px] border border-white bg-white sm:rounded-[28px]">
-                <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">Explore AI matching</p>
-                    <p className="mt-1 text-sm text-gray-500">Scroll-reactive showcase for your product demo, metrics, and campaign system.</p>
-                  </div>
-                  <div className="w-fit rounded-full bg-[#edf5ff] px-3 py-1 text-xs font-semibold text-gray-700">Live preview</div>
+          <div className="grid md:grid-cols-[180px_minmax(0,1fr)]">
+            <aside className="hidden border-r border-[#e8ede7] bg-[#fafbf9] p-4 md:block">
+              <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#89928b]">Workspace</p>
+              <nav aria-label="Preview workspace navigation" className="mt-3 space-y-1 text-sm">
+                <p className="rounded-md px-2.5 py-2 text-[#69746b]">Overview</p>
+                <p className="rounded-md px-2.5 py-2 text-[#69746b]">Discover creators</p>
+                <p className="rounded-md bg-[#edf0ff] px-2.5 py-2 font-medium text-[#3449b5]">Campaigns</p>
+              </nav>
+              <div className="mt-7 border-t border-[#e8ede7] pt-4">
+                <p className="px-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#89928b]">Current brief</p>
+                <p className="mt-3 px-2 text-xs font-semibold text-[#26362a]">Spring skincare launch</p>
+                <p className="mt-1 px-2 text-xs text-[#7a857c]">Beauty · Micro creators</p>
+              </div>
+            </aside>
+
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-end justify-between gap-3 border-b border-[#e8ede7] px-4 py-4 sm:px-6">
+                <div>
+                  <p className="text-xs text-[#7a857c]">Campaign workspace</p>
+                  <h2 className="mt-1 text-lg font-semibold text-[#1d2c21]">Creator shortlist</h2>
                 </div>
-
-                <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[1.15fr_0.85fr]">
-                  <div className="rounded-[22px] bg-[linear-gradient(180deg,#f7f9fc_0%,#ffffff_100%)] p-4 sm:rounded-[24px] sm:p-5">
-                    <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.24em] text-gray-400">
-                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                      Creator signal board
+                <span className="rounded-md bg-[#f1f4ef] px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#526356]">Sample data</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2 border-b border-[#e8ede7] px-4 py-3 sm:px-6">
+                <span className="text-xs text-[#7a857c]">Filters</span>
+                <span className="rounded-md border border-[#e1e7df] px-2.5 py-1 text-xs text-[#526356]">Beauty</span>
+                <span className="rounded-md border border-[#e1e7df] px-2.5 py-1 text-xs text-[#526356]">Instagram</span>
+                <span className="rounded-md border border-[#e1e7df] px-2.5 py-1 text-xs text-[#526356]">India</span>
+              </div>
+              <div className="divide-y divide-[#edf0ec]">
+                {creators.map((creator) => (
+                  <div key={creator.category} className="flex items-center gap-3 px-4 py-3 sm:px-6">
+                    <Image src={creator.image} alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-full" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[#26362a]">{creator.category} creator</p>
+                      <p className="mt-0.5 text-xs text-[#7a857c]">{creator.platform} · Sample profile</p>
                     </div>
-                    <div className="mt-5 grid gap-3">
-                      <div className="rounded-[20px] border border-gray-100 bg-white p-4">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900">Beauty UGC shortlist</p>
-                            <p className="mt-1 text-xs text-gray-500">12 high-fit profiles with pricing context</p>
-                          </div>
-                          <div className="w-fit rounded-full bg-[#f3f9ef] px-3 py-1 text-xs font-semibold text-gray-700">92% fit</div>
-                        </div>
-                        <div className="mt-4 h-28 rounded-[18px] bg-[linear-gradient(135deg,#edf5ff_0%,#f7f8fb_55%,#fff8ea_100%)]" />
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        {['Audience overlap', 'AI pricing range', 'Response readiness'].map((item) => (
-                          <div key={item} className="rounded-[18px] border border-gray-100 bg-white p-4">
-                            <p className="text-xs text-gray-500">{item}</p>
-                            <p className="mt-4 text-lg font-semibold text-gray-900">Clear</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                    <span className="hidden shrink-0 rounded-md border border-[#dce3db] px-2.5 py-1.5 text-xs font-medium text-[#526356] sm:inline-flex">Review profile</span>
                   </div>
-
-                  <div className="grid gap-4">
-                    <div className="rounded-[22px] bg-[#f3f9ef] p-4 sm:rounded-[24px] sm:p-5">
-                      <p className="text-xs font-medium uppercase tracking-[0.24em] text-gray-400">Assist</p>
-                      <p className="mt-4 text-xl font-semibold tracking-[-0.03em] text-gray-900 sm:text-2xl">
-                        Recommendations that feel built in, not bolted on.
-                      </p>
-                    </div>
-                    <div className="rounded-[22px] bg-[#fdf0f3] p-4 sm:rounded-[24px] sm:p-5">
-                      <p className="text-sm font-semibold text-gray-900">Video / dashboard slot</p>
-                      <div className="mt-4 flex h-36 items-center justify-center rounded-[20px] border border-dashed border-gray-300 bg-white/70 px-4 text-center text-sm text-gray-500 sm:h-44">
-                        Product demo placeholder
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </Container>
-    </motion.section>
+    </section>
   );
 }
 
@@ -680,8 +696,8 @@ function FAQSection() {
       <Container>
           <SectionHeading
             eyebrow="FAQ"
-            title="Common questions about Collabkar."
-            description="Everything brands, creators, and agencies ask before running their first campaign on the platform."
+            title="Answers for brands and creators."
+            description="Practical details about matching, creator profiles, pricing estimates, and current plan availability."
           />
 
         <div className="mt-12 grid gap-4">
@@ -750,8 +766,8 @@ export function HomeLanding() {
   const reduceMotion = useReducedMotion() ?? false;
 
   return (
-    <main>
-      <HeroSection reduceMotion={reduceMotion} />
+    <main className="overflow-x-clip">
+      <HeroSection />
       <IntroSection />
       <FeaturesSection />
       <MetricsSection />

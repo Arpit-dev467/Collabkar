@@ -89,7 +89,9 @@ export default function SignupPage() {
     try {
       const result = await signup(form.email, form.password, form.role, profile);
       if (result.requiresEmailVerification) {
-        router.replace(`/verify-email?email=${encodeURIComponent(form.email)}`);
+        const query = new URLSearchParams({ email: form.email });
+        if (!result.verificationEmailSent) query.set('sent', 'false');
+        router.replace(`/verify-email?${query.toString()}`);
       } else {
         router.replace('/dashboard');
       }
@@ -209,7 +211,8 @@ export default function SignupPage() {
               type="password"
               value={form.password}
               onChange={(e) => update('password', e.target.value)}
-              placeholder="At least 6 characters"
+              minLength={12}
+              placeholder="At least 12 characters"
               required
             />
           </div>

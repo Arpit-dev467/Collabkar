@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
 import { BrandLogo } from './BrandLogo';
 import { Container, PrimaryLinkButton } from './marketing';
 
@@ -11,46 +14,67 @@ const NAV = [
 ];
 
 export function MarketingNav() {
-  return (
-    <header className="sticky top-0 z-40 border-b border-white/60 bg-white/75 backdrop-blur-xl">
-      <Container>
-        <div className="py-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-6">
-              <BrandLogo imageClassName="h-8 w-auto sm:h-10" priority />
-              <nav className="hidden items-center gap-2 text-sm md:flex">
-                {NAV.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="rounded-full px-4 py-2 font-medium text-gray-600 transition hover:bg-white hover:text-gray-900"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </nav>
-            </div>
+  const [menuOpen, setMenuOpen] = useState(false);
 
-            <div className="hidden md:flex">
-              <PrimaryLinkButton href="/signup">Start with Collabkar AI</PrimaryLinkButton>
-            </div>
+  return (
+    <header className="sticky top-0 z-40 w-full border-b border-[#e2e8df] bg-[#f4f6f1]/95 backdrop-blur-xl">
+      <Container>
+        <div className="flex min-h-16 items-center justify-between gap-4">
+          <BrandLogo imageClassName="h-8 w-auto sm:h-9" priority />
+
+          <nav aria-label="Main navigation" className="hidden items-center gap-1 text-sm lg:flex">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-lg px-3 py-2 font-medium text-[#58645b] transition hover:bg-white/70 hover:text-[#17241b]"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+
+          <div className="hidden lg:flex">
+            <PrimaryLinkButton href="#features">Explore AI features</PrimaryLinkButton>
           </div>
 
-          <div className="mt-4 flex flex-col gap-3 md:hidden">
-            <nav className="flex flex-wrap gap-2 text-sm">
+          <button
+            type="button"
+            aria-label={menuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-menu"
+            onClick={() => setMenuOpen((open) => !open)}
+            className="flex h-11 w-11 shrink-0 flex-col items-center justify-center gap-[5px] rounded-lg border border-[#d6ded4] bg-white/70 text-[#26362a] transition hover:bg-white lg:hidden"
+          >
+            <span className={`h-0.5 w-5 bg-current transition-transform ${menuOpen ? 'translate-y-[7px] rotate-45' : ''}`} />
+            <span className={`h-0.5 w-5 bg-current transition-opacity ${menuOpen ? 'opacity-0' : ''}`} />
+            <span className={`h-0.5 w-5 bg-current transition-transform ${menuOpen ? '-translate-y-[7px] -rotate-45' : ''}`} />
+          </button>
+        </div>
+
+        {menuOpen && (
+          <div id="mobile-menu" className="border-t border-[#e2e8df] pb-4 pt-3 lg:hidden">
+            <nav aria-label="Mobile navigation" className="grid gap-1">
               {NAV.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="rounded-full border border-gray-200 bg-white px-4 py-2 font-medium text-gray-600 transition hover:text-gray-900"
+                  onClick={() => setMenuOpen(false)}
+                  className="rounded-lg px-3 py-2.5 text-sm font-medium text-[#58645b] transition hover:bg-white/70 hover:text-[#17241b]"
                 >
                   {item.label}
                 </Link>
               ))}
             </nav>
-            <PrimaryLinkButton href="/signup">Start with Collabkar AI</PrimaryLinkButton>
+            <Link
+              href="#features"
+              onClick={() => setMenuOpen(false)}
+              className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#243b2b] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#172a1d]"
+            >
+              Explore AI features
+            </Link>
           </div>
-        </div>
+        )}
       </Container>
     </header>
   );

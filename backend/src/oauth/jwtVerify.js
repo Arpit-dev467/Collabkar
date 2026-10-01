@@ -57,7 +57,10 @@ export async function verifyJwtRs256({ token, jwksUrl, issuer, audience }) {
   if (!ok) throw new Error('jwt_signature_invalid');
 
   const now = Math.floor(Date.now() / 1000);
-  if (payload?.exp && Number(payload.exp) < now) throw new Error('jwt_expired');
+  if (!Number.isFinite(Number(payload?.exp)) || Number(payload.exp) <= now) throw new Error('jwt_expired');
+  if (payload?.nbf !== undefined && (!Number.isFinite(Number(payload.nbf)) || Number(payload.nbf) > now)) {
+    throw new Error('jwt_not_active');
+  }
   if (issuer && payload?.iss !== issuer) throw new Error('jwt_issuer_invalid');
   if (audience) {
     const aud = payload?.aud;

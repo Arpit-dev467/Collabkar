@@ -104,6 +104,7 @@ export async function signup(
   return {
     user: data.user as AuthUser,
     requiresEmailVerification: Boolean(data?.requiresEmailVerification),
+    verificationEmailSent: data?.verificationEmailSent !== false,
   };
 }
 

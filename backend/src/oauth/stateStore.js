@@ -39,10 +39,15 @@ export function consumeState(state) {
 
 export function sanitizeRedirect(value) {
   const raw = typeof value === 'string' ? value.trim() : '';
-  if (!raw) return '/dashboard';
-  if (!raw.startsWith('/')) return '/dashboard';
-  if (raw.startsWith('//')) return '/dashboard';
-  if (raw.includes('://')) return '/dashboard';
-  return raw;
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.includes('\\')) return '/dashboard';
+
+  try {
+    const baseUrl = 'https://collabkar.invalid';
+    const target = new URL(raw, baseUrl);
+    if (target.origin !== baseUrl) return '/dashboard';
+    return `${target.pathname}${target.search}${target.hash}`;
+  } catch {
+    return '/dashboard';
+  }
 }
 

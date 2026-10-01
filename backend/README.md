@@ -22,10 +22,19 @@ Create `backend/.env` (or set env vars in your shell):
 ```bash
 PORT=4001
 CORS_ORIGIN=http://localhost:3000
+AUTH_JWT_SECRET=replace-with-a-random-secret-at-least-32-characters
+AUTH_JWT_EXPIRES_IN=7d
 MONGODB_URI=mongodb://localhost:27017/collabkar
+APP_BASE_URL=http://localhost:3000
+RESEND_API_KEY=
+RESEND_FROM_EMAIL="CollabKar <onboarding@yourdomain.com>"
 WAITLIST_FILE_PATH=C:\path\to\waitlist-emails.csv
 WAITLIST_WEBHOOK_URL=https://your-pc-bridge-url.example.com/waitlist
 ```
+
+Production requires MongoDB, a JWT secret of at least 32 characters, an HTTPS
+`APP_BASE_URL`, and both Resend settings. Verification links are only logged in
+non-production development when Resend is not configured.
 
 For a free cloud MVP, use a MongoDB Atlas `M0` connection string in `MONGODB_URI`.
 When `MONGODB_URI` is set and MongoDB connects successfully, both influencer data
