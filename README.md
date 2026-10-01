@@ -2,7 +2,7 @@
 
 CollabKar connects **creators** and **brands** to run campaigns, manage deliverables, and track payouts — with role-based dashboards.
 
-Live demo: https://collabkar-inqz.vercel.app/
+Live demo: collabkar.dpdns.org
 
 ## What’s Included
 
