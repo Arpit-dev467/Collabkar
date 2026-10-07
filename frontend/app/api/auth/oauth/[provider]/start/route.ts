@@ -24,9 +24,11 @@ export async function GET(
   }
 
   const redirectTo = sanitizeRedirect(request.nextUrl.searchParams.get('redirect'));
+  const role = request.nextUrl.searchParams.get('role');
   const backendBase = getBackendBase().replace(/\/$/, '');
   const target = new URL(`${backendBase}/api/auth/oauth/${normalized}/start`);
   target.searchParams.set('redirect', redirectTo);
+  if (role) target.searchParams.set('role', role);
 
   return NextResponse.redirect(target.toString(), { status: 307 });
 }

@@ -35,8 +35,10 @@ function getPasswordPepper() {
 }
 
 function isDevAdminLoginEnabled() {
-  return process.env.NODE_ENV !== 'production' &&
-    String(process.env.AUTH_ALLOW_DEV_ADMIN_LOGIN || '').toLowerCase() === 'true';
+  if (process.env.NODE_ENV === 'production') return false;
+  const allow = process.env.AUTH_ALLOW_DEV_ADMIN_LOGIN;
+  if (allow === undefined || allow === '') return true;
+  return String(allow).toLowerCase() === 'true';
 }
 
 function getAppBaseUrl() {
@@ -115,6 +117,8 @@ function buildDefaultProfile(role = 'creator') {
     phone: '',
     primaryPlatform: role === 'creator' ? 'instagram' : '',
     teamSize: '',
+    rosterSize: '',
+    budgetRange: '',
     socialHandles: {
       instagram: '',
       tiktok: '',
@@ -128,10 +132,14 @@ function buildDefaultProfile(role = 'creator') {
 
 function buildDefaultOnboarding(role = 'creator') {
   return {
+    isCompleted: false,
     completedSteps: ['account_created'],
     profileCompletion: 0,
     signupSource: 'email',
-    interestedFeatures: role === 'creator' ? ['pricing', 'profile_analytics'] : ['brand_matching', 'campaign_discovery'],
+    interestedFeatures:
+      role === 'creator' ? ['pricing', 'profile_analytics'] :
+      role === 'brand' ? ['brand_matching', 'campaign_discovery'] :
+      ['management_tools', 'client_reporting', 'campaign_management'],
   };
 }
 
@@ -150,6 +158,8 @@ function normalizeProfile(input, role) {
     phone: normalizeText(input?.phone, 40),
     primaryPlatform: normalizeText(input?.primaryPlatform, 40).toLowerCase(),
     teamSize: normalizeText(input?.teamSize, 40),
+    rosterSize: normalizeText(input?.rosterSize, 40),
+    managementScope: normalizeText(input?.managementScope, 200),
     socialHandles: {
       instagram: normalizeHandle(socialInput.instagram || input?.instagramHandle),
       tiktok: normalizeHandle(socialInput.tiktok || input?.tiktokHandle),
@@ -176,6 +186,9 @@ function validateProfile(profile, role) {
   }
   if (role === 'creator' && !profile.creatorCategory) {
     return 'Creator category is required for creator accounts.';
+  }
+  if (role === 'agency' && !profile.companyName) {
+    return 'Agency name is required for agency accounts.';
   }
   if (profile.website && !URL_REGEX.test(profile.website)) {
     return 'Website must be a valid URL.';
@@ -293,8 +306,8 @@ export async function signup({ email, password, role, profile: rawProfile }) {
   if (Buffer.byteLength(`${rawPassword}${getPasswordPepper()}`, 'utf8') > 72) {
     return { ok: false, status: 400, error: 'Password is too long.' };
   }
-  if (normalizedRole !== 'creator' && normalizedRole !== 'brand') {
-    return { ok: false, status: 400, error: 'Role must be creator or brand.' };
+  if (normalizedRole !== 'creator' && normalizedRole !== 'brand' && normalizedRole !== 'agency') {
+    return { ok: false, status: 400, error: 'Role must be creator, brand, or agency.' };
   }
 
   const profile = normalizeProfile(rawProfile, normalizedRole);
@@ -309,12 +322,15 @@ export async function signup({ email, password, role, profile: rawProfile }) {
 
   const pepperedPassword = `${rawPassword}${getPasswordPepper()}`;
   const passwordHash = await bcrypt.hash(pepperedPassword, 10);
+  const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
+  const autoVerify = isDev || process.env.AUTH_AUTO_VERIFY_DEV === 'true';
+
   const user = {
     id: crypto.randomUUID(),
     email: normalizedEmail,
     role: normalizedRole,
     passwordHash,
-    isEmailVerified: false,
+    isEmailVerified: Boolean(autoVerify),
     oauth: {},
     emailVerificationTokenHash: '',
     emailVerificationExpiresAt: '',
@@ -327,22 +343,32 @@ export async function signup({ email, password, role, profile: rawProfile }) {
     createdAt: new Date().toISOString(),
   };
 
-  const { token, tokenHash, expiresAt } = createEmailVerificationToken();
-  user.emailVerificationTokenHash = tokenHash;
-  user.emailVerificationExpiresAt = expiresAt;
+  let token = null;
+  let verificationEmailSent = false;
+
+  if (autoVerify) {
+    token = issueToken({ sub: user.id, role: user.role, email: user.email });
+  } else {
+    const { token: verToken, tokenHash, expiresAt } = createEmailVerificationToken();
+    user.emailVerificationTokenHash = tokenHash;
+    user.emailVerificationExpiresAt = expiresAt;
+  }
 
   await writeUsers([...users, user]);
-  const verificationEmailSent = await sendEmailVerification({
-    email: user.email,
-    verificationToken: token,
-  });
+
+  if (!autoVerify) {
+    verificationEmailSent = await sendEmailVerification({
+      email: user.email,
+      verificationToken: user.emailVerificationTokenHash ? user.emailVerificationTokenHash : '',
+    });
+  }
 
   return {
     ok: true,
     status: 201,
-    token: null,
+    token,
     user: publicUser(user),
-    requiresEmailVerification: true,
+    requiresEmailVerification: !autoVerify,
     verificationEmailSent,
   };
 }
@@ -375,12 +401,20 @@ export async function login({ identifier, password }) {
   }
 
   if (!user.isEmailVerified) {
-    return {
-      ok: false,
-      status: 403,
-      error: 'Email not verified. Please check your inbox.',
-      requiresEmailVerification: true,
-    };
+    const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
+    if (isDev || process.env.AUTH_AUTO_VERIFY_DEV === 'true') {
+      user.isEmailVerified = true;
+      user.emailVerificationTokenHash = '';
+      user.emailVerificationExpiresAt = '';
+      await writeUsers(users);
+    } else {
+      return {
+        ok: false,
+        status: 403,
+        error: 'Email not verified. Please check your inbox.',
+        requiresEmailVerification: true,
+      };
+    }
   }
 
   const token = issueToken({ sub: user.id, role: user.role, email: user.email });
@@ -567,7 +601,7 @@ export async function verifyEmail({ token }) {
   return { ok: true, status: 200, token: jwtToken, user: publicUser(user) };
 }
 
-export async function findOrCreateOAuthUser({ provider, providerId, email }) {
+export async function findOrCreateOAuthUser({ provider, providerId, email, role = 'creator', displayName }) {
   const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
   if (!EMAIL_REGEX.test(normalizedEmail)) {
     return { ok: false, status: 400, error: 'Provider did not return a valid email.' };
@@ -575,24 +609,28 @@ export async function findOrCreateOAuthUser({ provider, providerId, email }) {
 
   const users = await readUsers();
   let user = users.find((u) => u.email === normalizedEmail);
+  const effectiveRole = user?.role || (role === 'brand' ? 'brand' : 'creator');
+
   if (!user) {
     user = {
       id: crypto.randomUUID(),
       email: normalizedEmail,
-      role: 'brand',
+      role: effectiveRole,
       passwordHash: '',
       isEmailVerified: true,
       oauth: {},
       emailVerificationTokenHash: '',
       emailVerificationExpiresAt: '',
       profile: {
-        ...buildDefaultProfile('brand'),
-        displayName: normalizedEmail.split('@')[0],
+        ...buildDefaultProfile(effectiveRole),
+        displayName: displayName || normalizedEmail.split('@')[0],
+        companyName: effectiveRole === 'brand' ? 'Demo Brand Co.' : '',
+        creatorCategory: effectiveRole === 'creator' ? 'tech' : '',
       },
       onboarding: {
-        ...buildDefaultOnboarding('brand'),
+        ...buildDefaultOnboarding(effectiveRole),
         signupSource: provider,
-        profileCompletion: 20,
+        profileCompletion: 40,
       },
       createdAt: new Date().toISOString(),
     };

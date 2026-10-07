@@ -78,25 +78,29 @@ function Button({
   );
 }
 
-export function SocialAuthButtons({ redirect = '/dashboard' }: { redirect?: string }) {
-  const encoded = encodeURIComponent(redirect);
+export function SocialAuthButtons({ redirect = '/dashboard', role }: { redirect?: string; role?: string }) {
+  const params = new URLSearchParams();
+  if (redirect) params.set('redirect', redirect);
+  if (role) params.set('role', role);
+  const query = `?${params.toString()}`;
+
   return (
     <div className="grid grid-cols-1 gap-2">
       <Button
         variant="facebook"
-        href={`/api/auth/oauth/facebook/start?redirect=${encoded}`}
+        href={`/api/auth/oauth/facebook/start${query}`}
         label="Continue with Facebook"
         icon={<IconFacebook />}
       />
       <Button
         variant="google"
-        href={`/api/auth/oauth/google/start?redirect=${encoded}`}
+        href={`/api/auth/oauth/google/start${query}`}
         label="Continue with Google"
         icon={<IconGoogle />}
       />
       <Button
         variant="apple"
-        href={`/api/auth/oauth/apple/start?redirect=${encoded}`}
+        href={`/api/auth/oauth/apple/start${query}`}
         label="Continue with Apple"
         icon={<IconApple />}
       />

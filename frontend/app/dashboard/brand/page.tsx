@@ -30,7 +30,7 @@ export default function BrandDashboard() {
       try {
         const me = await fetchMe();
         if (me.role !== 'brand' && me.role !== 'admin') {
-          return router.replace('/dashboard');
+          return router.replace('/dashboard/creator');
         }
         setUser(me);
       } catch {

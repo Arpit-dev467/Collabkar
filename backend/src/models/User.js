@@ -8,6 +8,8 @@ const socialHandlesSchema = new mongoose.Schema(
     linkedin: { type: String, default: '' },
     x: { type: String, default: '' },
     website: { type: String, default: '' },
+    instagramVerified: { type: Boolean, default: false },
+    youtubeVerified: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -16,6 +18,7 @@ const profileSchema = new mongoose.Schema(
   {
     displayName: { type: String, default: '' },
     companyName: { type: String, default: '' },
+    agencyName: { type: String, default: '' },
     creatorCategory: { type: String, default: '' },
     website: { type: String, default: '' },
     location: { type: String, default: '' },
@@ -23,6 +26,13 @@ const profileSchema = new mongoose.Schema(
     phone: { type: String, default: '' },
     primaryPlatform: { type: String, default: '' },
     teamSize: { type: String, default: '' },
+    rosterSize: { type: String, default: '' },
+    pricingPerPost: { type: String, default: '' },
+    budgetRange: { type: String, default: '' },
+    targetAudience: { type: String, default: '' },
+    campaignGoals: { type: [String], default: [] },
+    managementScope: { type: String, default: '' },
+    billingSetup: { type: String, default: '' },
     socialHandles: { type: socialHandlesSchema, default: () => ({}) },
   },
   { _id: false }
@@ -30,6 +40,7 @@ const profileSchema = new mongoose.Schema(
 
 const onboardingSchema = new mongoose.Schema(
   {
+    isCompleted: { type: Boolean, default: false },
     completedSteps: { type: [String], default: ['account_created'] },
     profileCompletion: { type: Number, default: 0 },
     signupSource: { type: String, default: 'email' },
@@ -51,7 +62,7 @@ const userSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true, index: true },
     email: { type: String, required: true, unique: true, index: true, lowercase: true, trim: true },
-    role: { type: String, required: true, enum: ['creator', 'brand', 'admin'] },
+    role: { type: String, required: true, enum: ['creator', 'brand', 'agency', 'admin'] },
     passwordHash: { type: String, default: '' },
     isEmailVerified: { type: Boolean, default: false },
     oauth: { type: oauthSchema, default: () => ({}) },

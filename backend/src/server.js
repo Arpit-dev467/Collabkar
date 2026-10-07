@@ -186,7 +186,7 @@ combinedAiRouter.use(aiRoutes);
 combinedAiRouter.use(aiRouter);
 
 app.use('/api/influencer', requireDatabase, influencerRoutes);
-app.use('/api/auth', authLimiter, requireDatabase, authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/campaigns', requireDatabase, campaignRoutes);
 app.use('/api/ai', aiLimiter, combinedAiRouter);
 

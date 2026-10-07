@@ -18,3 +18,10 @@ frontend/.next-dev.err.log
 # misc
 **/data/
 
+
+# all env files
+**/.env.*
+!**/.env.example
+null
+prompt.txt
+/package-lock.json

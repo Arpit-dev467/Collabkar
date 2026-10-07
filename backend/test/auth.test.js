@@ -5,6 +5,7 @@ import path from 'node:path';
 import { after, before, test } from 'node:test';
 import bcrypt from 'bcryptjs';
 import { login, signup } from '../src/auth.js';
+import { oauthStart } from '../src/oauth/handlers.js';
 import { sanitizeRedirect } from '../src/oauth/stateStore.js';
 
 const envKeys = [
@@ -170,5 +171,74 @@ test('auth security regressions', async (t) => {
     assert.equal(sanitizeRedirect('//attacker.example'), '/dashboard');
     assert.equal(sanitizeRedirect('/\\attacker.example'), '/dashboard');
     assert.equal(sanitizeRedirect('https://attacker.example'), '/dashboard');
+  });
+
+  await t.test('allows dev admin login in development mode', async () => {
+    process.env.NODE_ENV = 'development';
+    process.env.AUTH_ALLOW_DEV_ADMIN_LOGIN = 'true';
+    try {
+      const result = await login({ identifier: 'admin', password: '1234' });
+      assert.equal(result.ok, true);
+      assert.equal(result.user?.role, 'admin');
+      assert.ok(result.token);
+    } finally {
+      process.env.NODE_ENV = 'test';
+    }
+  });
+
+  await t.test('auto-verifies signup in development mode with token', async () => {
+    process.env.NODE_ENV = 'development';
+    process.env.AUTH_AUTO_VERIFY_DEV = 'true';
+    try {
+      await writeUsers([]);
+      const result = await signup({
+        email: 'dev@example.com',
+        password: 'correct-horse-battery-staple',
+        role: 'creator',
+        profile: { displayName: 'Dev Creator', creatorCategory: 'tech' },
+      });
+
+      assert.equal(result.ok, true);
+      assert.equal(result.requiresEmailVerification, false);
+      assert.ok(result.token);
+      assert.equal(result.user?.isEmailVerified, true);
+    } finally {
+      process.env.NODE_ENV = 'test';
+      delete process.env.AUTH_AUTO_VERIFY_DEV;
+    }
+  });
+
+  await t.test('handles dev mock OAuth redirects for google, facebook, and apple', async () => {
+    process.env.NODE_ENV = 'development';
+    process.env.OAUTH_DEV_MOCK_ENABLED = 'true';
+    process.env.APP_BASE_URL = 'http://localhost:3000';
+
+    try {
+      for (const provider of ['google', 'facebook', 'apple']) {
+        let redirectUrl = '';
+        const req = {
+          params: { provider },
+          query: { redirect: '/dashboard', role: 'brand' },
+        };
+        const res = {
+          redirect(url) {
+            redirectUrl = url;
+          },
+          status() {
+            return this;
+          },
+          json() {
+            return this;
+          },
+        };
+
+        await oauthStart(req, res);
+        assert.ok(redirectUrl.startsWith('http://localhost:3000/auth/callback?code='));
+        assert.ok(redirectUrl.includes('&redirect=%2Fdashboard'));
+      }
+    } finally {
+      process.env.NODE_ENV = 'test';
+      delete process.env.OAUTH_DEV_MOCK_ENABLED;
+    }
   });
 });

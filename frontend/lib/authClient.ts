@@ -1,6 +1,6 @@
 import { apiUrl } from './api';
 
-export type UserRole = 'creator' | 'brand' | 'admin';
+export type UserRole = 'creator' | 'brand' | 'agency' | 'admin';
 
 export interface AuthUser {
   id: string;
@@ -11,6 +11,7 @@ export interface AuthUser {
   profile?: {
     displayName?: string;
     companyName?: string;
+    agencyName?: string;
     creatorCategory?: string;
     website?: string;
     location?: string;
@@ -18,6 +19,13 @@ export interface AuthUser {
     phone?: string;
     primaryPlatform?: string;
     teamSize?: string;
+    rosterSize?: string;
+    pricingPerPost?: string;
+    budgetRange?: string;
+    targetAudience?: string;
+    campaignGoals?: string[];
+    managementScope?: string;
+    billingSetup?: string;
     socialHandles?: {
       instagram?: string;
       tiktok?: string;
@@ -28,6 +36,7 @@ export interface AuthUser {
     };
   };
   onboarding?: {
+    isCompleted?: boolean;
     completedSteps?: string[];
     profileCompletion?: number;
     signupSource?: string;
@@ -37,17 +46,41 @@ export interface AuthUser {
 
 const TOKEN_KEY = 'collabkar_token';
 
-export function getToken() {
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+  return match ? decodeURIComponent(match[3]) : null;
+}
+
+export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem(TOKEN_KEY);
+  return window.localStorage.getItem(TOKEN_KEY) || getCookie(TOKEN_KEY);
 }
 
 export function setToken(token: string) {
+  if (typeof window === 'undefined') return;
   window.localStorage.setItem(TOKEN_KEY, token);
+  document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
 }
 
 export function clearToken() {
+  if (typeof window === 'undefined') return;
   window.localStorage.removeItem(TOKEN_KEY);
+  document.cookie = `${TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+}
+
+export function getDecodedTokenPayload(): { sub?: string; role?: UserRole; email?: string } | null {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(base64);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchMe(): Promise<AuthUser> {
@@ -88,7 +121,7 @@ export async function login(identifier: string, password: string) {
 export async function signup(
   email: string,
   password: string,
-  role: 'creator' | 'brand',
+  role: 'creator' | 'brand' | 'agency',
   profile: AuthUser['profile']
 ) {
   const response = await fetch(apiUrl('/api/auth/signup'), {
@@ -106,6 +139,25 @@ export async function signup(
     requiresEmailVerification: Boolean(data?.requiresEmailVerification),
     verificationEmailSent: data?.verificationEmailSent !== false,
   };
+}
+
+export async function updateUserProfile(profile: AuthUser['profile']) {
+  const token = getToken();
+  if (!token) throw new Error('missing_token');
+
+  const response = await fetch(apiUrl('/api/auth/profile'), {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ profile }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error || 'profile_update_failed');
+
+  return data.user as AuthUser;
 }
 
 export async function verifyEmail(token: string) {

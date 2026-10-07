@@ -16,6 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Overview', href: '/dashboard' },
   { label: 'Creator', href: '/dashboard/creator', roles: ['creator', 'admin'] },
   { label: 'Brand', href: '/dashboard/brand', roles: ['brand', 'admin'] },
+  { label: 'Agency', href: '/dashboard/agency', roles: ['agency', 'admin'] },
   { label: 'Admin', href: '/dashboard/admin', roles: ['admin'] },
 ];
 

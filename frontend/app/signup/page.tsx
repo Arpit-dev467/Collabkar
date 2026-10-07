@@ -9,7 +9,7 @@ import { BrandLogo } from '../_components/BrandLogo';
 import { SocialAuthButtons } from '../_components/SocialAuthButtons';
 import { Card, Divider, ErrorBanner, Label, PrimaryButton, Select, SubtleText, TextInput, Title } from '../_components/ui';
 
-type Role = 'creator' | 'brand';
+type Role = 'creator' | 'brand' | 'agency';
 
 type SignupForm = {
   email: string;
@@ -68,10 +68,10 @@ export default function SignupPage() {
 
     const profile: AuthUser['profile'] = {
       displayName: form.displayName,
-      companyName: form.role === 'brand' ? form.companyName : '',
+      companyName: form.role === 'brand' || form.role === 'agency' ? form.companyName : '',
       creatorCategory: form.role === 'creator' ? form.creatorCategory : '',
       primaryPlatform: form.role === 'creator' ? form.primaryPlatform : '',
-      teamSize: form.role === 'brand' ? form.teamSize : '',
+      teamSize: form.role === 'brand' || form.role === 'agency' ? form.teamSize : '',
       website: form.website,
       location: form.location,
       bio: form.bio,
@@ -93,7 +93,7 @@ export default function SignupPage() {
         if (!result.verificationEmailSent) query.set('sent', 'false');
         router.replace(`/verify-email?${query.toString()}`);
       } else {
-        router.replace('/dashboard');
+        router.replace('/onboarding');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Signup failed');
@@ -114,7 +114,7 @@ export default function SignupPage() {
         </div>
 
         <div className="mb-6">
-          <SocialAuthButtons redirect="/dashboard" />
+          <SocialAuthButtons redirect="/dashboard" role={form.role} />
         </div>
 
         <div className="mb-6">
@@ -130,6 +130,7 @@ export default function SignupPage() {
             >
               <option value="creator">Creator</option>
               <option value="brand">Brand</option>
+              <option value="agency">Agency</option>
             </Select>
           </div>
 

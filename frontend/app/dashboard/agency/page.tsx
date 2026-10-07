@@ -7,7 +7,13 @@ import ProfilePanel from '../_components/ProfilePanel';
 import { clearToken, fetchMe, type AuthUser } from '../../../lib/authClient';
 import { fetchActiveCampaigns, type CampaignRecord } from '../../../lib/campaignClient';
 
-export default function CreatorDashboard() {
+interface AgencyMetric {
+  label: string;
+  value: string;
+  meta: string;
+}
+
+export default function AgencyDashboard() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -17,7 +23,7 @@ export default function CreatorDashboard() {
     const run = async () => {
       try {
         const me = await fetchMe();
-        if (me.role !== 'creator' && me.role !== 'admin') {
+        if (me.role !== 'agency' && me.role !== 'admin') {
           return router.replace('/dashboard/brand');
         }
         setUser(me);
@@ -39,26 +45,32 @@ export default function CreatorDashboard() {
 
   if (!user) return null;
 
+  const metrics: AgencyMetric[] = [
+    {
+      label: 'Profile completion',
+      value: `${user.onboarding?.profileCompletion ?? 0}%`,
+      meta: 'Complete your agency profile to attract more clients',
+    },
+    {
+      label: 'Creator roster',
+      value: user.profile?.rosterSize || 'n/a',
+      meta: 'Number of creators you manage',
+    },
+    {
+      label: 'Active campaigns',
+      value: String(campaigns.length),
+      meta: 'Campaigns currently managed by your agency',
+    },
+  ];
+
   return (
-    <DashboardShell title="Creator Dashboard" user={user}>
+    <DashboardShell title="Agency Dashboard" user={user}>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <div className="grid gap-4 sm:grid-cols-3">
-            <MetricCard
-              label="Profile completion"
-              value={`${user.onboarding?.profileCompletion ?? 0}%`}
-              meta="Complete your creator profile to look campaign-ready"
-            />
-            <MetricCard
-              label="Primary platform"
-              value={user.profile?.primaryPlatform || 'n/a'}
-              meta={user.profile?.creatorCategory || 'Choose your niche category'}
-            />
-            <MetricCard
-              label="Connected socials"
-              value={String(Object.values(user.profile?.socialHandles || {}).filter(Boolean).length)}
-              meta="Instagram, TikTok, YouTube, LinkedIn, X"
-            />
+            {metrics.map((metric) => (
+              <MetricCard key={metric.label} {...metric} />
+            ))}
           </div>
 
           <ProfilePanel user={user} onUserChange={setUser} />
@@ -66,11 +78,11 @@ export default function CreatorDashboard() {
           <div className="rounded-2xl border border-black/10 bg-white/70 p-6 shadow-[0_18px_45px_rgba(30,45,122,0.08)] backdrop-blur">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <div className="text-lg font-semibold">Active campaigns</div>
-                <div className="text-sm text-gray-600">Brand opportunities currently live in the MVP database.</div>
+                <div className="text-lg font-semibold">Managed campaigns</div>
+                <div className="text-sm text-gray-600">Campaigns currently managed by your agency.</div>
               </div>
               <button className="rounded-xl bg-[#3F5AE0] px-4 py-2 text-sm text-white shadow-[0_14px_30px_rgba(63,90,224,0.28)]">
-                View brand match
+                Post new campaign
               </button>
             </div>
 
@@ -113,7 +125,7 @@ export default function CreatorDashboard() {
             <div className="mt-4 space-y-3">
               {[
                 { title: 'Add at least 2 social handles', meta: 'Helps brands verify your presence faster.' },
-                { title: 'Write a sharper bio', meta: 'Explain audience, niche, and what collaborations you do.' },
+                { title: 'Write a sharper bio', meta: 'Explain your agency expertise and services.' },
                 { title: 'Use the AI pricing tool', meta: 'Generate a baseline price before pitching brands.' },
               ].map((item) => (
                 <div key={item.title} className="rounded-xl border border-black/10 bg-white p-4">
@@ -129,10 +141,10 @@ export default function CreatorDashboard() {
             <div className="mt-2 text-sm text-gray-700">
               {user.profile?.bio
                 ? 'Your profile is shaping up well. Connect more socials to improve trust and matching.'
-                : 'Write a short bio explaining your content style and audience before applying to campaigns.'}
+                : 'Write a short bio explaining your agency expertise and services before applying to campaigns.'}
             </div>
             <button className="mt-4 w-full rounded-xl bg-[#0B0B0F] px-4 py-2.5 text-sm text-white">
-              Open creator analysis
+              Open agency analysis
             </button>
           </div>
         </div>
@@ -141,7 +153,7 @@ export default function CreatorDashboard() {
   );
 }
 
-function MetricCard({ label, value, meta }: { label: string; value: string; meta: string }) {
+function MetricCard({ label, value, meta }: AgencyMetric) {
   return (
     <div className="rounded-2xl border border-black/10 bg-white/70 p-5 shadow-[0_18px_45px_rgba(30,45,122,0.08)] backdrop-blur">
       <div className="text-xs uppercase tracking-wider text-gray-500">{label}</div>
