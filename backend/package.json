@@ -20,7 +20,6 @@
     "express": "^4.22.3",
     "express-rate-limit": "^8.7.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.13.2",
     "pg": "^8.23.1",
     "redis": "^4.6.14"
   },

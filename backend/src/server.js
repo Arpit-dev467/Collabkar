@@ -89,8 +89,7 @@ const corsOrigin = corsOriginRaw
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-// Removes Mongo operator keys ($ne, $gt, ...) and prototype-pollution keys
-// from user input so it cannot change the meaning of a database query.
+// Prevents unsafe property names from reaching request handlers.
 const BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function stripOperators(value) {
@@ -98,7 +97,7 @@ function stripOperators(value) {
   if (value && typeof value === 'object') {
     const clean = {};
     for (const [key, inner] of Object.entries(value)) {
-      if (key.startsWith('$') || key.includes('.') || BLOCKED_KEYS.has(key)) continue;
+      if (key.includes('.') || BLOCKED_KEYS.has(key)) continue;
       clean[key] = stripOperators(inner);
     }
     return clean;
@@ -120,10 +119,6 @@ function sanitizeInput(req, _res, next) {
     // If query cannot be replaced in this Express version, continue without it.
   }
   next();
-}
-
-function requireDatabase(_req, res, next) {
-  return next();
 }
 
 function makeLimiter({ windowMs, max, message, skipSuccessfulRequests = false }) {
@@ -198,9 +193,9 @@ const combinedAiRouter = express.Router();
 combinedAiRouter.use(aiRoutes);
 combinedAiRouter.use(aiRouter);
 
-app.use('/api/influencer', requireDatabase, influencerRoutes);
+app.use('/api/influencer', influencerRoutes);
 app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/campaigns', requireDatabase, campaignRoutes);
+app.use('/api/campaigns', campaignRoutes);
 app.use('/api/ai', aiLimiter, combinedAiRouter);
 
 app.post('/api/waitlist', waitlistLimiter, async (req, res) => {
