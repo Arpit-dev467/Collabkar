@@ -1,7 +1,6 @@
 /* eslint-disable no-console */
 import express from 'express';
 import cors from 'cors';
-import mongoose from 'mongoose';
 import rateLimit from 'express-rate-limit';
 import { handleWaitlistSubmission } from './waitlist.js';
 import { suggestPricing } from './pricing.js';
@@ -11,6 +10,7 @@ import authRoutes from './routes/authRoutes.js';
 import campaignRoutes from './routes/campaignRoutes.js';
 import { securityHeaders } from './middleware/securityHeaders.js';
 import aiRouter from './routes/ai/index.js';
+import { db } from './db/db.js';
 
 const isProd = process.env.NODE_ENV === 'production';
 const isTest = process.env.NODE_ENV === 'test';
@@ -20,11 +20,11 @@ const isTest = process.env.NODE_ENV === 'test';
 /* ------------------------------------------------------------------ */
 
 const REQUIRED_IN_PRODUCTION = [
-  'MONGODB_URI',
   'AUTH_JWT_SECRET',
   'APP_BASE_URL',
   'RESEND_API_KEY',
   'RESEND_FROM_EMAIL',
+  'DATABASE_URL',
 ];
 
 if (isProd) {
@@ -43,6 +43,21 @@ if (isProd) {
   } catch {
     console.error('APP_BASE_URL must be a valid HTTPS URL in production.');
     process.exit(1);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Database connection test                                           */
+/* ------------------------------------------------------------------ */
+
+async function testDatabaseConnection() {
+  try {
+    await db.execute('SELECT 1');
+    console.log('PostgreSQL database connected successfully.');
+  } catch (error) {
+    console.error('PostgreSQL database connection failed:', error?.message || error);
+    if (isProd) process.exit(1);
+    console.warn('Continuing without a database (non-production mode).');
   }
 }
 
@@ -108,9 +123,6 @@ function sanitizeInput(req, _res, next) {
 }
 
 function requireDatabase(_req, res, next) {
-  if (mongoose.connection.readyState !== 1) {
-    return res.status(503).json({ error: 'Database is not available. Please try again shortly.' });
-  }
   return next();
 }
 
@@ -133,11 +145,9 @@ const apiLimiter = makeLimiter({
   message: 'Too many requests. Please slow down.',
 });
 
-// Only failed attempts count, which targets password guessing without
-// blocking normal logged-in traffic.
 const authLimiter = makeLimiter({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // 100 attempts
+  windowMs: 15 * MINUTE,
+  max: 20,
   skipSuccessfulRequests: true,
   message: 'Too many failed attempts. Please try again later.',
 });
@@ -170,23 +180,15 @@ app.use('/api', apiLimiter);
 /* ------------------------------------------------------------------ */
 
 app.get('/health', (_req, res) => {
-  const dbConnected = mongoose.connection.readyState === 1;
-  res.status(dbConnected || !process.env.MONGODB_URI ? 200 : 503).json({
-    ok: dbConnected || !process.env.MONGODB_URI,
-    db: process.env.MONGODB_URI ? (dbConnected ? 'connected' : 'disconnected') : 'not configured',
-    uptime: Math.round(process.uptime()),
-  });
+  res.status(200).send("ok server is awake");
 });
 
-// Both AI routers live under one mount so rate limiting applies once.
-// Requests go to aiRoutes first, then fall through to aiRouter.
-// Tip: merge these two files into one router when you get time.
 const combinedAiRouter = express.Router();
 combinedAiRouter.use(aiRoutes);
 combinedAiRouter.use(aiRouter);
 
 app.use('/api/influencer', requireDatabase, influencerRoutes);
-app.use('/api/auth', authLimiter, requireDatabase, authRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/campaigns', requireDatabase, campaignRoutes);
 app.use('/api/ai', aiLimiter, combinedAiRouter);
 
@@ -261,24 +263,6 @@ app.use((err, _req, res, _next) => {
 /* Startup and shutdown                                                */
 /* ------------------------------------------------------------------ */
 
-async function connectDatabase() {
-  const mongoUri = process.env.MONGODB_URI;
-
-  if (!mongoUri) {
-    console.warn('MONGODB_URI not set. Database-backed endpoints will return 503.');
-    return;
-  }
-
-  try {
-    await mongoose.connect(mongoUri, { serverSelectionTimeoutMS: 10000 });
-    console.log('MongoDB connected.');
-  } catch (error) {
-    console.error('MongoDB connection failed:', error?.message || error);
-    if (isProd) process.exit(1);
-    console.warn('Continuing without a database (non-production mode).');
-  }
-}
-
 let server;
 
 async function shutdown(signal, exitCode = 0) {
@@ -291,7 +275,6 @@ async function shutdown(signal, exitCode = 0) {
 
   try {
     if (server) await new Promise((resolve) => server.close(resolve));
-    await mongoose.connection.close();
   } catch (error) {
     console.error('Error during shutdown:', error?.message || error);
   }
@@ -299,7 +282,7 @@ async function shutdown(signal, exitCode = 0) {
 }
 
 async function start() {
-  await connectDatabase();
+  await testDatabaseConnection();
 
   const port = Number(process.env.PORT || 4001);
   server = app.listen(port, () => {
@@ -315,7 +298,8 @@ async function start() {
     }
 
     if (error?.code === 'EACCES') {
-      console.error(`Permission denied listening on port ${port}. Try a higher port (e.g. PORT=5000).`);
+      console.error(`Permission denied listening on port ${port}. Try a higher port (e.g. PORT=5000).`
+      );
       process.exit(1);
     }
 
@@ -334,7 +318,6 @@ async function start() {
   });
 }
 
-// Tests can import the app without starting a server.
 if (!isTest) {
   start();
 }
