@@ -1,4 +1,32 @@
-node_modules
-data
-.env
+# dependencies
+**/node_modules/
 
+# build output
+**/.next/
+**/.turbo/
+**/dist/
+**/build/
+
+# OS files
+**/.DS_Store
+**/Thumbs.db
+
+# environment files (secrets: never commit)
+**/.env
+**/.env.*
+!**/.env.example
+
+# logs
+**/*.log
+frontend/.next-dev.out.log
+frontend/.next-dev.err.log
+npm-debug.log*
+
+# local data
+**/data/
+
+# editor and misc
+**/.vscode/
+**/.idea/
+**/coverage/
+**/.vercel/

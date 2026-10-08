@@ -1,7 +1,6 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import Link from 'next/link';
 
 function IconFacebook() {
   return (
@@ -49,6 +48,8 @@ function IconApple() {
   );
 }
 
+type Provider = 'facebook' | 'google' | 'apple';
+
 function Button({
   href,
   label,
@@ -57,7 +58,7 @@ function Button({
 }: {
   href: string;
   label: string;
-  variant: 'facebook' | 'google' | 'apple';
+  variant: Provider;
   icon: ReactNode;
 }) {
   const base =
@@ -70,19 +71,42 @@ function Button({
         ? `${base} bg-black text-white hover:bg-gray-900`
         : `${base} border border-gray-200 bg-white text-gray-900 hover:bg-gray-50`;
 
+  // Plain <a> on purpose: these URLs are API routes that redirect to an
+  // external OAuth provider, so they need a full browser navigation.
+  // next/link would try to fetch an RSC payload and prefetch them.
   return (
-    <Link href={href} className={classes}>
+    <a href={href} className={classes}>
       <span className="absolute left-4 top-1/2 -translate-y-1/2">{icon}</span>
       <span className="block text-center">{label}</span>
-    </Link>
+    </a>
   );
 }
 
+// Only allow same-site relative paths (blocks "//evil.com" and "https://...").
+function safeRedirect(path: string): string {
+  return path.startsWith('/') && !path.startsWith('//') ? path : '/dashboard';
+}
+
+
 export function SocialAuthButtons({ redirect = '/dashboard', role }: { redirect?: string; role?: string }) {
   const params = new URLSearchParams();
-  if (redirect) params.set('redirect', redirect);
+  // Always set redirect, using safeRedirect for security
+  params.set('redirect', safeRedirect(redirect || '/dashboard'));
+  // Only set role if it's provided
   if (role) params.set('role', role);
+
   const query = `?${params.toString()}`;
+// Only allow same-site relative paths (blocks "//evil.com" and "https://...").
+function safeRedirect(path: string): string {
+  return path.startsWith('/') && !path.startsWith('//') ? path : '/dashboard';
+}
+
+export function SocialAuthButtons({ redirect = '/dashboard' }: { redirect?: string }) {
+  const encoded = encodeURIComponent(safeRedirect(redirect));
+
+
+  const query = params.toString() ? `?${params.toString()}` : '';
+
 
   return (
     <div className="grid grid-cols-1 gap-2">
