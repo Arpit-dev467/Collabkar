@@ -136,8 +136,8 @@ const apiLimiter = makeLimiter({
 // Only failed attempts count, which targets password guessing without
 // blocking normal logged-in traffic.
 const authLimiter = makeLimiter({
-  windowMs: 15 * MINUTE,
-  max: 20,
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 100, // 100 attempts
   skipSuccessfulRequests: true,
   message: 'Too many failed attempts. Please try again later.',
 });
