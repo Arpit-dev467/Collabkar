@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 import { login } from '../../lib/authClient';
 import { BrandLogo } from '../_components/BrandLogo';
-import { SocialAuthButtons } from '../_components/SocialAuthButtons';
+import { SocialAuthWithLoading } from '../_components/SocialAuthWithLoading';
 import { Card, Divider, ErrorBanner, Label, PrimaryButton, SubtleText, TextInput, Title } from '../_components/ui';
 
 function LoginForm() {
@@ -58,7 +58,7 @@ function LoginForm() {
       </div>
 
       <div className="mb-6">
-        <SocialAuthButtons redirect={redirectTarget} />
+        <SocialAuthWithLoading redirect={redirectTarget} />
       </div>
 
       <div className="mb-6">

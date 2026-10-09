@@ -45,6 +45,26 @@ export interface AuthUser {
 }
 
 const TOKEN_KEY = 'collabkar_token';
+const AUTH_REQUEST_TIMEOUT_MS = 65_000;
+
+async function authRequest(path: string, init: RequestInit) {
+  try {
+    return await fetch(apiUrl(path), {
+      ...init,
+      signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'name' in error &&
+      (error.name === 'TimeoutError' || error.name === 'AbortError')
+    ) {
+      throw new Error('The server took too long to respond. Please try again.');
+    }
+    throw new Error('Unable to reach the server. Check your connection and try again.');
+  }
+}
 
 function getCookie(name: string): string | null {
   if (typeof document === 'undefined') return null;
@@ -98,7 +118,7 @@ export async function fetchMe(): Promise<AuthUser> {
 }
 
 export async function login(identifier: string, password: string) {
-  const response = await fetch(apiUrl('/api/auth/login'), {
+  const response = await authRequest('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ identifier, password }),
@@ -106,7 +126,7 @@ export async function login(identifier: string, password: string) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data?.error || 'login_failed') as Error & { code?: string; requiresEmailVerification?: boolean };
+    const error = new Error(data?.error || `Sign-in failed (HTTP ${response.status}). Please try again.`) as Error & { code?: string; requiresEmailVerification?: boolean };
     if (data?.requiresEmailVerification) {
       error.code = 'email_not_verified';
       error.requiresEmailVerification = true;
@@ -124,14 +144,16 @@ export async function signup(
   role: 'creator' | 'brand' | 'agency',
   profile: AuthUser['profile']
 ) {
-  const response = await fetch(apiUrl('/api/auth/signup'), {
+  const response = await authRequest('/api/auth/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, role, profile }),
   });
 
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.error || 'signup_failed');
+  if (!response.ok) {
+    throw new Error(data?.error || `Account creation failed (HTTP ${response.status}). Please try again.`);
+  }
 
   if (typeof data?.token === 'string' && data.token) setToken(data.token);
   return {

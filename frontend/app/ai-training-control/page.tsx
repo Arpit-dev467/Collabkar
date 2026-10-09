@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import AISidebar from '../components/AISidebar';
-import { aiApi } from '../../lib/api';
+import { aiApi, apiUrl } from '../../lib/api';
 
 export default function TrainingControl() {
   const [log, setLog] = useState('');
@@ -16,8 +16,7 @@ export default function TrainingControl() {
         const response = await aiApi.trainModels();
         setLog(JSON.stringify(response.data, null, 2));
       } else {
-        const url = `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/api/ai/training/${endpoint}`;
-        const response = await fetch(url, { method: 'POST' });
+        const response = await fetch(apiUrl(`/api/ai/training/${endpoint}`), { method: 'POST' });
         const data = await response.json();
         setLog(JSON.stringify(data, null, 2));
       }

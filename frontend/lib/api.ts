@@ -1,10 +1,9 @@
 export function getApiBase() {
-  return process.env.NEXT_PUBLIC_BACKEND_URL || '';
+  return (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4001').replace(/\/+$/, '');
 }
 
 export function apiUrl(path: string) {
   const base = getApiBase();
-  if (!base) return path;
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 }
 

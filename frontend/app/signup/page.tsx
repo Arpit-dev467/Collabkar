@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { signup } from '../../lib/authClient';
 import type { AuthUser } from '../../lib/authClient';
 import { BrandLogo } from '../_components/BrandLogo';
-import { SocialAuthButtons } from '../_components/SocialAuthButtons';
+import { SocialAuthWithLoading } from '../_components/SocialAuthWithLoading';
 import { Card, Divider, ErrorBanner, Label, PrimaryButton, Select, SubtleText, TextInput, Title } from '../_components/ui';
 
 type Role = 'creator' | 'brand' | 'agency';
@@ -114,7 +114,7 @@ export default function SignupPage() {
         </div>
 
         <div className="mb-6">
-          <SocialAuthButtons redirect="/dashboard" role={form.role} />
+          <SocialAuthWithLoading redirect="/dashboard" role={form.role} />
         </div>
 
         <div className="mb-6">

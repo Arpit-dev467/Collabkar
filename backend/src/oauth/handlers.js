@@ -10,21 +10,38 @@ import {
 } from './providers.js';
 
 function getAppBaseUrl() {
-  return process.env.APP_BASE_URL || 'http://localhost:3000';
+  const configuredUrl = process.env.APP_BASE_URL?.trim();
+  if (!configuredUrl && process.env.NODE_ENV === 'production') {
+    console.error('APP_BASE_URL is required in production.');
+    return null;
+  }
+  return (configuredUrl || 'http://localhost:3000').replace(/\/+$/, '');
 }
 
 function providerRedirectUri(provider) {
-  if (provider === 'google') return process.env.GOOGLE_REDIRECT_URI || 'http://localhost:4001/api/auth/oauth/google/callback';
-  if (provider === 'facebook') return process.env.FACEBOOK_REDIRECT_URI || 'http://localhost:4001/api/auth/oauth/facebook/callback';
-  if (provider === 'apple') return process.env.APPLE_REDIRECT_URI || 'http://localhost:4001/api/auth/oauth/apple/callback';
-  return null;
+  const redirectVariables = {
+    google: 'GOOGLE_REDIRECT_URI',
+    facebook: 'FACEBOOK_REDIRECT_URI',
+    apple: 'APPLE_REDIRECT_URI',
+  };
+  const variable = redirectVariables[provider];
+  if (!variable) return null;
+
+  const configuredUri = process.env[variable]?.trim();
+  if (configuredUri) return { redirectUri: configuredUri };
+  if (process.env.NODE_ENV === 'production') {
+    console.error(`${variable} is required for ${provider} OAuth in production.`);
+    return { missingVariable: variable };
+  }
+
+  return {
+    redirectUri: `http://localhost:4001/api/auth/oauth/${provider}/callback`,
+  };
 }
 
 function requireProvider(provider) {
   if (provider !== 'google' && provider !== 'facebook' && provider !== 'apple') return null;
-  const redirectUri = providerRedirectUri(provider);
-  if (!redirectUri) return null;
-  return { provider, redirectUri };
+  return { provider, ...providerRedirectUri(provider) };
 }
 
 async function handleDevMockOAuth(req, res, provider, redirectTo, role) {
@@ -46,6 +63,9 @@ async function handleDevMockOAuth(req, res, provider, redirectTo, role) {
   }
 
   const appBaseUrl = getAppBaseUrl();
+  if (!appBaseUrl) {
+    return res.status(500).json({ ok: false, error: 'APP_BASE_URL is required in production.' });
+  }
   const safeRedirect = encodeURIComponent(redirectTo || '/dashboard');
   const authCode = createAuthCode({ token: result.token });
   return res.redirect(`${appBaseUrl}/auth/callback?code=${encodeURIComponent(authCode)}&redirect=${safeRedirect}`);
@@ -55,6 +75,12 @@ export async function oauthStart(req, res) {
   const provider = String(req.params?.provider || '').toLowerCase();
   const config = requireProvider(provider);
   if (!config) return res.status(400).json({ ok: false, error: 'Unsupported provider.' });
+  if (!config.redirectUri) {
+    return res.status(500).json({
+      ok: false,
+      error: `${config.missingVariable} is required for ${provider} OAuth in production.`,
+    });
+  }
 
   const redirectTo = sanitizeRedirect(req.query?.redirect);
   const role = req.query?.role === 'brand' ? 'brand' : 'creator';
@@ -128,6 +154,12 @@ export async function oauthCallback(req, res) {
   const provider = String(req.params?.provider || '').toLowerCase();
   const config = requireProvider(provider);
   if (!config) return res.status(400).json({ ok: false, error: 'Unsupported provider.' });
+  if (!config.redirectUri) {
+    return res.status(500).json({
+      ok: false,
+      error: `${config.missingVariable} is required for ${provider} OAuth in production.`,
+    });
+  }
 
   const body = req.body ?? {};
   const query = req.query ?? {};
@@ -195,6 +227,9 @@ export async function oauthCallback(req, res) {
     if (!result.ok) return res.status(result.status).json({ ok: false, error: result.error });
 
     const appBaseUrl = getAppBaseUrl();
+    if (!appBaseUrl) {
+      return res.status(500).json({ ok: false, error: 'APP_BASE_URL is required in production.' });
+    }
     const redirectTo = encodeURIComponent(stateEntry.redirectTo || '/dashboard');
     const authCode = createAuthCode({ token: result.token });
     return res.redirect(`${appBaseUrl}/auth/callback?code=${encodeURIComponent(authCode)}&redirect=${redirectTo}`);

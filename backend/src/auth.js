@@ -54,7 +54,11 @@ function getDevAdminPassword() {
 }
 
 function getAppBaseUrl() {
-  return process.env.APP_BASE_URL || "http://localhost:3000";
+  const configuredUrl = process.env.APP_BASE_URL?.trim();
+  if (!configuredUrl && process.env.NODE_ENV === "production") {
+    throw new Error("APP_BASE_URL is required in production.");
+  }
+  return (configuredUrl || "http://localhost:3000").replace(/\/+$/, "");
 }
 
 function getEmailVerifyTokenTtlMin() {

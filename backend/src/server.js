@@ -28,6 +28,26 @@ const REQUIRED_IN_PRODUCTION = [
 ];
 
 if (isProd) {
+  const productionEnvVars = [
+    'DATABASE_URL',
+    'AUTH_JWT_SECRET',
+    'APP_BASE_URL',
+    'CORS_ORIGINS',
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_SECRET',
+    'GOOGLE_REDIRECT_URI',
+    'RESEND_API_KEY',
+    'RESEND_FROM_EMAIL',
+  ];
+  for (const name of productionEnvVars) {
+    if (!process.env[name]?.trim()) {
+      console.warn(`Missing production environment variable: ${name}`);
+    }
+  }
+  if (process.env.AUTH_JWT_SECRET && process.env.AUTH_JWT_SECRET.length < 32) {
+    console.warn('Production environment variable AUTH_JWT_SECRET must contain at least 32 characters.');
+  }
+
   const missing = REQUIRED_IN_PRODUCTION.filter((name) => !process.env[name]);
   if (missing.length > 0) {
     console.error(`Missing required environment variables: ${missing.join(', ')}`);
