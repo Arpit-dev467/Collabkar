@@ -51,14 +51,25 @@ if (isProd) {
 /* ------------------------------------------------------------------ */
 
 async function testDatabaseConnection() {
-  try {
-    await db.execute('SELECT 1');
-    console.log('PostgreSQL database connected successfully.');
-  } catch (error) {
-    console.error('PostgreSQL database connection failed:', error?.message || error);
-    if (isProd) process.exit(1);
-    console.warn('Continuing without a database (non-production mode).');
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    try {
+      await db.execute('SELECT 1');
+      console.log('PostgreSQL database connected successfully.');
+      return true;
+    } catch (error) {
+      console.error(
+        'PostgreSQL database connection failed:',
+        error?.message,
+        error?.cause?.message || error?.cause
+      );
+      if (attempt < 5) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    }
   }
+
+  console.warn('Continuing without a database after 5 failed connection attempts.');
+  return false;
 }
 
 /* ------------------------------------------------------------------ */
@@ -66,6 +77,10 @@ async function testDatabaseConnection() {
 /* ------------------------------------------------------------------ */
 
 const app = express();
+app.get('/health', (_req, res) => {
+  res.status(200).type('text/plain').send('ok');
+});
+
 app.disable('x-powered-by');
 
 // Needed so rate limiting sees the real client IP behind Vercel, Render, Nginx, etc.
@@ -76,14 +91,10 @@ app.set('trust proxy', Number.isNaN(Number(trustProxy)) ? trustProxy : Number(tr
 /* CORS                                                                */
 /* ------------------------------------------------------------------ */
 
-const corsOriginRaw = process.env.CORS_ORIGIN;
-const corsOrigin = corsOriginRaw
-  ? corsOriginRaw.split(',').map((value) => value.trim()).filter(Boolean)
-  : (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) return callback(null, true);
-      return callback(null, false);
-    };
+const allowedOrigins =
+  process.env.CORS_ORIGINS === undefined
+    ? ['http://localhost:3000']
+    : process.env.CORS_ORIGINS.split(',').map((value) => value.trim()).filter(Boolean);
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -164,7 +175,7 @@ const waitlistLimiter = makeLimiter({
 /* ------------------------------------------------------------------ */
 
 app.use(securityHeaders());
-app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: false, limit: '200kb' }));
 app.use(sanitizeInput);
@@ -173,21 +184,6 @@ app.use('/api', apiLimiter);
 /* ------------------------------------------------------------------ */
 /* Routes                                                              */
 /* ------------------------------------------------------------------ */
-
-app.get('/health', async (_req, res) => {
-  let dbConnected = false;
-  try {
-    await db.execute('SELECT 1');
-    dbConnected = true;
-  } catch {
-    dbConnected = false;
-  }
-  res.status(dbConnected || !process.env.DATABASE_URL ? 200 : 503).json({
-    ok: dbConnected || !process.env.DATABASE_URL,
-    db: process.env.DATABASE_URL ? (dbConnected ? 'connected' : 'disconnected') : 'not configured',
-    uptime: Math.round(process.uptime()),
-  });
-});
 
 const combinedAiRouter = express.Router();
 combinedAiRouter.use(aiRoutes);
@@ -291,8 +287,8 @@ async function start() {
   await testDatabaseConnection();
 
   const port = Number(process.env.PORT || 4001);
-  server = app.listen(port, () => {
-    console.log(`Backend listening on http://localhost:${port}`);
+  server = app.listen(port, '0.0.0.0', () => {
+    console.log(`Backend listening on 0.0.0.0:${port}`);
   });
 
   server.on('error', (error) => {

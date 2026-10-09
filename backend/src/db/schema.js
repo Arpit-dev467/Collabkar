@@ -21,6 +21,15 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+export const waitlist = pgTable('waitlist', {
+  id: text('id').primaryKey(),
+  email: text('email').unique().notNull(),
+  brandName: text('brand_name').notNull(),
+  creatorName: text('creator_name').notNull(),
+  source: text('source').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const influencers = pgTable('influencers', {
   username: text('username').primaryKey(),
   followers: real('followers').notNull(),

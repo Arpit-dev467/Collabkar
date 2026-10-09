@@ -1,5 +1,13 @@
 # dependencies
+node_modules
 **/node_modules/
+
+# secrets
+.env
+
+# local data and logs
+data/
+*.log
 
 # build output
 **/.next/
