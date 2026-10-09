@@ -20,8 +20,8 @@
     "express": "^4.22.3",
     "express-rate-limit": "^8.7.0",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.23.1",
-    "redis": "^4.6.14"
+    "redis": "^4.6.14",
+    "ws": "^8.22.0"
   },
   "overrides": {
     "qs": "^6.16.0"

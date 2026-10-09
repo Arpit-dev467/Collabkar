@@ -1,11 +1,10 @@
 import 'dotenv/config';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import pkg from 'pg';
-const { Pool } = pkg;
-import * as schema from './schema.js';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import ws from 'ws';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+neonConfig.webSocketConstructor = ws;
 
-export const db = drizzle(pool, { schema });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+export const db = drizzle(pool);
