@@ -7,7 +7,13 @@ export function apiUrl(path: string) {
   return `${base}${path.startsWith('/') ? path : `/${path}`}`;
 }
 
-async function request(path: string, init?: RequestInit) {
+type ApiResponse = Record<string, unknown>;
+
+function isApiResponse(value: unknown): value is ApiResponse {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+async function request<T = unknown>(path: string, init?: RequestInit): Promise<{ data: T }> {
   const response = await fetch(apiUrl(path), {
     headers: {
       'Content-Type': 'application/json',
@@ -17,23 +23,25 @@ async function request(path: string, init?: RequestInit) {
   });
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  const parsed: unknown = text ? JSON.parse(text) : null;
+  const data = isApiResponse(parsed) ? parsed : null;
 
   if (!response.ok) {
-    throw new Error(data?.detail || data?.error || `Request failed with status ${response.status}`);
+    const message = data?.detail ?? data?.error;
+    throw new Error(typeof message === 'string' ? message : `Request failed with status ${response.status}`);
   }
 
-  return { data };
+  return { data: parsed as T };
 }
 
 export const aiApi = {
-  analyze: (data: any) => request('/api/ai/analyze', { method: 'POST', body: JSON.stringify(data) }),
-  match: (data: any) => request('/api/ai/match', { method: 'POST', body: JSON.stringify(data) }),
-  price: (data: any) => request('/api/ai/price', { method: 'POST', body: JSON.stringify(data) }),
-  dashboard: () => request('/api/ai/dashboard'),
+  analyze: <T = unknown>(data: unknown) => request<T>('/api/ai/analyze', { method: 'POST', body: JSON.stringify(data) }),
+  match: <T = unknown>(data: unknown) => request<T>('/api/ai/match', { method: 'POST', body: JSON.stringify(data) }),
+  price: <T = unknown>(data: unknown) => request<T>('/api/ai/price', { method: 'POST', body: JSON.stringify(data) }),
+  dashboard: <T = unknown>() => request<T>('/api/ai/dashboard'),
   queueScrape: (usernames: string[]) =>
-    request('/api/ai/scraper/queue', { method: 'POST', body: JSON.stringify({ usernames }) }),
+    request<{ queued?: number; message?: string; detail?: string }>('/api/ai/scraper/queue', { method: 'POST', body: JSON.stringify({ usernames }) }),
   buildDataset: () => request('/api/ai/training/build-dataset', { method: 'POST' }),
   trainModels: () => request('/api/ai/training/train', { method: 'POST' }),
-  health: () => request('/api/ai/health'),
+  health: <T = unknown>() => request<T>('/api/ai/health'),
 };

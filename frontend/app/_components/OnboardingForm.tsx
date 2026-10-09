@@ -5,18 +5,18 @@ import { useRouter } from 'next/navigation';
 import { ONBOARDING_CONFIG } from './OnboardingConfig';
 import { OnboardingStep } from './OnboardingStep';
 import { updateUserProfile } from '../../lib/authClient';
-import type { UserRole } from '../../lib/authClient';
+import type { AuthUser, UserRole } from '../../lib/authClient';
 
 interface OnboardingFormProps {
   role: UserRole;
-  initialData?: Record<string, any>;
+  initialData?: AuthUser['profile'];
 }
 
 export function OnboardingForm({ role, initialData = {} }: OnboardingFormProps) {
   const router = useRouter();
-  const config = ONBOARDING_CONFIG[role as keyof typeof ONBOARDING_CONFIG];
+  const config = role === 'admin' ? undefined : ONBOARDING_CONFIG[role];
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [formData, setFormData] = useState<Record<string, any>>(initialData);
+  const [formData, setFormData] = useState<Record<string, unknown>>({ ...initialData });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,13 +26,15 @@ export function OnboardingForm({ role, initialData = {} }: OnboardingFormProps) 
 
   const currentStep = config.steps[currentStepIndex];
 
-  const updateFormData = (key: string, value: any) => {
+  const updateFormData = (key: string, value: string) => {
     if (key.includes('.')) {
       const [parent, child] = key.split('.');
       setFormData((prev) => ({
         ...prev,
         [parent]: {
-          ...(prev[parent] || {}),
+          ...(typeof prev[parent] === 'object' && prev[parent] !== null
+            ? prev[parent]
+            : {}),
           [child]: value,
         },
       }));
@@ -67,6 +69,7 @@ export function OnboardingForm({ role, initialData = {} }: OnboardingFormProps) 
         onChange={updateFormData}
         onNext={handleNext}
         isLastStep={currentStepIndex === config.steps.length - 1}
+        loading={loading}
       />
 
       {error && (

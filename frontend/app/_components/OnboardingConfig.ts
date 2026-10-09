@@ -2,7 +2,36 @@
 
 // Configuration for role-specific onboarding questionnaires
 
-export const ONBOARDING_CONFIG = {
+export interface OnboardingSocialField {
+  id: string;
+  label: string;
+  placeholder?: string;
+}
+
+export interface OnboardingField {
+  id: string;
+  label: string;
+  type: string;
+  placeholder?: string;
+  required?: boolean;
+  options?: { value: string; label: string }[];
+  description?: string;
+  fields?: OnboardingSocialField[];
+}
+
+export interface OnboardingStepConfig {
+  id: string;
+  title: string;
+  description: string;
+  fields: OnboardingField[];
+}
+
+interface RoleOnboardingConfig {
+  title: string;
+  steps: OnboardingStepConfig[];
+}
+
+export const ONBOARDING_CONFIG: Record<'creator' | 'brand' | 'agency', RoleOnboardingConfig> = {
   // Creator onboarding
   creator: {
     title: "Creator Onboarding",

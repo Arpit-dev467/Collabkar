@@ -27,8 +27,8 @@ export default function ScraperControl() {
     try {
       const res = await aiApi.queueScrape(list);
       setQueueResult(res.data);
-    } catch (err: any) {
-      setError(err?.message || 'Queue failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Queue failed');
     } finally {
       setLoadingQueue(false);
     }

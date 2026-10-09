@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { fetchMe } from '../../lib/authClient';
+import { fetchMe, type AuthUser } from '../../lib/authClient';
 import { OnboardingForm } from '../_components/OnboardingForm';
 import { Card, Title } from '../_components/ui';
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,13 +28,13 @@ export default function OnboardingPage() {
     init();
   }, [router]);
 
-  if (loading) return <div>Loading...</div>;
+  if (loading || !user) return <div>Loading...</div>;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <Card className="max-w-4xl mx-auto">
         <Title>Welcome to Collabkar</Title>
-        <p className="text-gray-600 mb-6">Let's set up your profile to get started.</p>
+        <p className="text-gray-600 mb-6">Let&apos;s set up your profile to get started.</p>
         <OnboardingForm role={user.role} initialData={user.profile} />
       </Card>
     </div>

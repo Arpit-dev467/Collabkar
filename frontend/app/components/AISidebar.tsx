@@ -12,7 +12,7 @@ export default function AISidebar() {
   const [health, setHealth] = useState<AiHealth | null>(null);
 
   useEffect(() => {
-    aiApi.health().then(res => setHealth(res.data)).catch(() => {});
+    aiApi.health<AiHealth>().then(res => setHealth(res.data)).catch(() => {});
   }, []);
 
   return (

@@ -1,10 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { clearToken, fetchMe, type AuthUser } from '../../../lib/authClient';
+import { useEffect } from 'react';
+import type { AuthUser } from '../../../lib/authClient';
 import DashboardShell from './DashboardShell';
-import AgencySidebar from './AgencySidebar';
+import { AgencySidebar } from './AgencySidebar';
 
 interface AgencyDashboardShellProps {
   title: string;

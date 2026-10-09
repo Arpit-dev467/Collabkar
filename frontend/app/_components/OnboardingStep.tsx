@@ -1,33 +1,18 @@
 'use client';
 
-import { useState } from 'react';
 import { Card, Divider, Label, PrimaryButton, Select, SubtleText, TextInput, Title } from './ui';
-
-interface FieldConfig {
-  id: string;
-  label: string;
-  type: string;
-  placeholder?: string;
-  required?: boolean;
-  options?: { value: string; label: string }[];
-  description?: string;
-  fields?: FieldConfig[];
-}
+import type { OnboardingStepConfig } from './OnboardingConfig';
 
 interface OnboardingStepProps {
-  step: {
-    id: string;
-    title: string;
-    description: string;
-    fields: FieldConfig[];
-  };
-  values: Record<string, any>;
-  onChange: (key: string, value: any) => void;
+  step: OnboardingStepConfig;
+  values: Record<string, unknown>;
+  onChange: (key: string, value: string) => void;
   onNext: () => void;
   isLastStep: boolean;
+  loading?: boolean;
 }
 
-export function OnboardingStep({ step, values, onChange, onNext, isLastStep }: OnboardingStepProps) {
+export function OnboardingStep({ step, values, onChange, onNext, isLastStep, loading = false }: OnboardingStepProps) {
   return (
     <Card className="space-y-6">
       <div className="space-y-2">
@@ -48,7 +33,7 @@ export function OnboardingStep({ step, values, onChange, onNext, isLastStep }: O
 
             {field.type === 'text' && (
               <TextInput
-                value={values[field.id] || ''}
+                value={String(values[field.id] ?? '')}
                 onChange={(e) => onChange(field.id, e.target.value)}
                 placeholder={field.placeholder}
                 required={field.required}
@@ -59,7 +44,7 @@ export function OnboardingStep({ step, values, onChange, onNext, isLastStep }: O
               <textarea
                 className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-gray-400 focus:ring-2 focus:ring-gray-200"
                 rows={4}
-                value={values[field.id] || ''}
+                value={String(values[field.id] ?? '')}
                 onChange={(e) => onChange(field.id, e.target.value)}
                 placeholder={field.placeholder}
               />
@@ -67,7 +52,7 @@ export function OnboardingStep({ step, values, onChange, onNext, isLastStep }: O
 
             {field.type === 'select' && (
               <Select
-                value={values[field.id] || ''}
+                value={String(values[field.id] ?? '')}
                 onChange={(e) => onChange(field.id, e.target.value)}
               >
                 {field.options?.map((option) => (
@@ -82,7 +67,7 @@ export function OnboardingStep({ step, values, onChange, onNext, isLastStep }: O
                   {field.fields?.map((socialField) => (
                     <TextInput
                       key={socialField.id}
-                      value={values[`socialHandles.${socialField.id}`] || ''}
+                      value={String(values[`socialHandles.${socialField.id}`] ?? '')}
                       onChange={(e) => onChange(`socialHandles.${socialField.id}`, e.target.value)}
                       placeholder={socialField.placeholder}
                     />
@@ -94,8 +79,8 @@ export function OnboardingStep({ step, values, onChange, onNext, isLastStep }: O
         ))}
 
         <div className="flex justify-end">
-          <PrimaryButton type="button" onClick={onNext} disabled={isLastStep ? false : false}>
-            {isLastStep ? 'Complete Onboarding' : 'Next Step'}
+          <PrimaryButton type="button" onClick={onNext} disabled={loading}>
+            {loading ? 'Saving...' : isLastStep ? 'Complete Onboarding' : 'Next Step'}
           </PrimaryButton>
         </div>
       </form>

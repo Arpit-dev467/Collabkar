@@ -20,8 +20,8 @@ export default function TrainingControl() {
         const data = await response.json();
         setLog(JSON.stringify(data, null, 2));
       }
-    } catch (err: any) {
-      setLog('Error: ' + (err?.message || 'Unknown error'));
+    } catch (err) {
+      setLog(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
     setRunning(false);
   };
