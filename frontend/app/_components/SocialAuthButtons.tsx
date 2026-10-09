@@ -96,18 +96,6 @@ export function SocialAuthButtons({ redirect = '/dashboard', role }: { redirect?
   if (role) params.set('role', role);
 
   const query = `?${params.toString()}`;
-// Only allow same-site relative paths (blocks "//evil.com" and "https://...").
-function safeRedirect(path: string): string {
-  return path.startsWith('/') && !path.startsWith('//') ? path : '/dashboard';
-}
-
-export function SocialAuthButtons({ redirect = '/dashboard' }: { redirect?: string }) {
-  const encoded = encodeURIComponent(safeRedirect(redirect));
-
-
-  const query = params.toString() ? `?${params.toString()}` : '';
-
-
   return (
     <div className="grid grid-cols-1 gap-2">
       <Button

@@ -1,23 +1,8 @@
-import pg from 'pg';
-import dotenv from 'dotenv';
+import { db } from './src/db/db.js';
 
-dotenv.config();
-
-const { Pool } = pg;
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
-});
-
-pool.connect()
-  .then(() => {
-    console.log('Successfully connected to the database!');
-    pool.end();
-  })
-  .catch(err => {
-    console.error('Connection failed:', err);
-    pool.end();
-  });
+try {
+  await db.execute('SELECT 1');
+  console.log('Successfully connected to the database!');
+} catch (error) {
+  console.error('Neon database connection failed:', error?.message || 'Unknown connection error.');
+}
