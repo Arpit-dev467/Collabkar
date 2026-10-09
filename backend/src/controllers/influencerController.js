@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
-import mongoose from 'mongoose';
-import { Influencer } from '../models/Influencer.js';
+import { eq } from 'drizzle-orm';
+import { db } from '../db/db.js';
+import { influencers } from '../db/schema.js';
 import {
   calculateEngagementRate,
   calculatePostFrequency,
@@ -9,11 +10,6 @@ import {
 import { detectNicheFromBio } from '../utils/nicheDetector.js';
 
 const USERNAME_REGEX = /^[a-zA-Z0-9._]{1,30}$/;
-
-function requireMongoConnected() {
-  // readyState: 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
-  return mongoose.connection.readyState === 1;
-}
 
 function normalizeUsername(value) {
   return typeof value === 'string' ? value.trim().toLowerCase() : '';
@@ -33,10 +29,6 @@ function generateVerificationCode() {
 }
 
 export async function submitInstagramProfile(req, res) {
-  if (!requireMongoConnected()) {
-    return res.status(503).json({ ok: false, error: 'MongoDB is not connected.' });
-  }
-
   const body = req.body ?? {};
   const username = normalizeUsername(body.username);
   const followers = parseNonNegativeNumber(body.followers);
@@ -79,10 +71,28 @@ export async function submitInstagramProfile(req, res) {
   const riskLevel = calculateRiskLevel({ engagementRate });
 
   try {
-    const existing = await Influencer.findOne({ username }).lean();
-    if (!existing) {
-      const created = await Influencer.create({
-        username,
+    const profile = {
+      username,
+      followers,
+      avgLikes,
+      avgComments,
+      engagementRate,
+      postFrequency,
+      niche,
+      location,
+      riskLevel,
+    };
+    const [created] = await db
+      .insert(influencers)
+      .values(profile)
+      .onConflictDoNothing()
+      .returning();
+
+    if (created) return res.status(201).json({ ok: true, influencer: created });
+
+    const [updated] = await db
+      .update(influencers)
+      .set({
         followers,
         avgLikes,
         avgComments,
@@ -91,42 +101,19 @@ export async function submitInstagramProfile(req, res) {
         niche,
         location,
         riskLevel,
-        verificationCode: '',
-        isVerified: false,
-      });
-
-      return res.status(201).json({ ok: true, influencer: created });
-    }
-
-    const updated = await Influencer.findOneAndUpdate(
-      { username },
-      {
-        $set: {
-          followers,
-          avgLikes,
-          avgComments,
-          engagementRate,
-          postFrequency,
-          niche,
-          location,
-          riskLevel,
-        },
-      },
-      { new: true }
-    );
+      })
+      .where(eq(influencers.username, username))
+      .returning();
+    if (!updated) throw new Error('Influencer disappeared while updating.');
 
     return res.status(200).json({ ok: true, influencer: updated });
   } catch (error) {
-    // Duplicate key, validation errors, etc.
+    console.error('Failed to save influencer profile:', error?.message || error);
     return res.status(500).json({ ok: false, error: 'Failed to save influencer profile.' });
   }
 }
 
 export async function generateInfluencerVerifyCode(req, res) {
-  if (!requireMongoConnected()) {
-    return res.status(503).json({ ok: false, error: 'MongoDB is not connected.' });
-  }
-
   const username = normalizeUsername(req.query?.username);
   if (!username || !USERNAME_REGEX.test(username)) {
     return res.status(400).json({
@@ -136,7 +123,11 @@ export async function generateInfluencerVerifyCode(req, res) {
   }
 
   try {
-    const influencer = await Influencer.findOne({ username });
+    const [influencer] = await db
+      .select()
+      .from(influencers)
+      .where(eq(influencers.username, username))
+      .limit(1);
     if (!influencer) {
       return res.status(404).json({
         ok: false,
@@ -145,26 +136,25 @@ export async function generateInfluencerVerifyCode(req, res) {
     }
 
     const verificationCode = generateVerificationCode();
-    influencer.verificationCode = verificationCode;
-    influencer.isVerified = false; // generating a new code invalidates any previous verification
-    await influencer.save();
+    const [updated] = await db
+      .update(influencers)
+      .set({ verificationCode, isVerified: false })
+      .where(eq(influencers.username, username))
+      .returning();
 
     return res.json({
       ok: true,
-      username: influencer.username,
+      username: updated.username,
       verificationCode,
       instructions: 'Add this code to your Instagram bio, then call POST /api/influencer/verify.',
     });
-  } catch {
+  } catch (error) {
+    console.error('Failed to generate influencer verification code:', error?.message || error);
     return res.status(500).json({ ok: false, error: 'Failed to generate verification code.' });
   }
 }
 
 export async function verifyInfluencer(req, res) {
-  if (!requireMongoConnected()) {
-    return res.status(503).json({ ok: false, error: 'MongoDB is not connected.' });
-  }
-
   const body = req.body ?? {};
   const username = normalizeUsername(body.username);
   const code = typeof body.code === 'string' ? body.code.trim() : '';
@@ -177,19 +167,25 @@ export async function verifyInfluencer(req, res) {
   }
 
   try {
-    const influencer = await Influencer.findOne({ username });
+    const [influencer] = await db
+      .select()
+      .from(influencers)
+      .where(eq(influencers.username, username))
+      .limit(1);
     if (!influencer) return res.status(404).json({ ok: false, error: 'Influencer not found.' });
 
-    // No scraping: user provides the code they placed in their bio.
     if (!influencer.verificationCode || influencer.verificationCode !== code) {
       return res.status(400).json({ ok: false, error: 'Verification code does not match.' });
     }
 
-    influencer.isVerified = true;
-    await influencer.save();
-    return res.json({ ok: true, influencer });
-  } catch {
+    const [updated] = await db
+      .update(influencers)
+      .set({ isVerified: true })
+      .where(eq(influencers.username, username))
+      .returning();
+    return res.json({ ok: true, influencer: updated });
+  } catch (error) {
+    console.error('Failed to verify influencer:', error?.message || error);
     return res.status(500).json({ ok: false, error: 'Failed to verify influencer.' });
   }
 }
-

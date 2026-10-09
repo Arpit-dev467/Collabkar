@@ -10,34 +10,93 @@ import {
 } from './providers.js';
 
 function getAppBaseUrl() {
-  return process.env.APP_BASE_URL || 'http://localhost:3000';
+  const configuredUrl = process.env.APP_BASE_URL?.trim();
+  if (!configuredUrl && process.env.NODE_ENV === 'production') {
+    console.error('APP_BASE_URL is required in production.');
+    return null;
+  }
+  return (configuredUrl || 'http://localhost:3000').replace(/\/+$/, '');
 }
 
 function providerRedirectUri(provider) {
-  if (provider === 'google') return process.env.GOOGLE_REDIRECT_URI || 'http://localhost:4001/api/auth/oauth/google/callback';
-  if (provider === 'facebook') return process.env.FACEBOOK_REDIRECT_URI || 'http://localhost:4001/api/auth/oauth/facebook/callback';
-  if (provider === 'apple') return process.env.APPLE_REDIRECT_URI || 'http://localhost:4001/api/auth/oauth/apple/callback';
-  return null;
+  const redirectVariables = {
+    google: 'GOOGLE_REDIRECT_URI',
+    facebook: 'FACEBOOK_REDIRECT_URI',
+    apple: 'APPLE_REDIRECT_URI',
+  };
+  const variable = redirectVariables[provider];
+  if (!variable) return null;
+
+  const configuredUri = process.env[variable]?.trim();
+  if (configuredUri) return { redirectUri: configuredUri };
+  if (process.env.NODE_ENV === 'production') {
+    console.error(`${variable} is required for ${provider} OAuth in production.`);
+    return { missingVariable: variable };
+  }
+
+  return {
+    redirectUri: `http://localhost:4001/api/auth/oauth/${provider}/callback`,
+  };
 }
 
 function requireProvider(provider) {
   if (provider !== 'google' && provider !== 'facebook' && provider !== 'apple') return null;
-  const redirectUri = providerRedirectUri(provider);
-  if (!redirectUri) return null;
-  return { provider, redirectUri };
+  return { provider, ...providerRedirectUri(provider) };
 }
 
-export function oauthStart(req, res) {
+async function handleDevMockOAuth(req, res, provider, redirectTo, role) {
+  const safeRole = role === 'brand' ? 'brand' : 'creator';
+  const mockEmail = `${provider}.demo@collabkar.dev`;
+  const mockProviderId = `mock_${provider}_demo_id`;
+  const displayName = `${provider.charAt(0).toUpperCase() + provider.slice(1)} Demo User`;
+
+  const result = await findOrCreateOAuthUser({
+    provider,
+    providerId: mockProviderId,
+    email: mockEmail,
+    role: safeRole,
+    displayName,
+  });
+
+  if (!result.ok) {
+    return res.status(result.status || 500).json({ ok: false, error: result.error });
+  }
+
+  const appBaseUrl = getAppBaseUrl();
+  if (!appBaseUrl) {
+    return res.status(500).json({ ok: false, error: 'APP_BASE_URL is required in production.' });
+  }
+  const safeRedirect = encodeURIComponent(redirectTo || '/dashboard');
+  const authCode = createAuthCode({ token: result.token });
+  return res.redirect(`${appBaseUrl}/auth/callback?code=${encodeURIComponent(authCode)}&redirect=${safeRedirect}`);
+}
+
+export async function oauthStart(req, res) {
   const provider = String(req.params?.provider || '').toLowerCase();
   const config = requireProvider(provider);
   if (!config) return res.status(400).json({ ok: false, error: 'Unsupported provider.' });
+  if (!config.redirectUri) {
+    return res.status(500).json({
+      ok: false,
+      error: `${config.missingVariable} is required for ${provider} OAuth in production.`,
+    });
+  }
 
   const redirectTo = sanitizeRedirect(req.query?.redirect);
-  const { state, codeVerifier } = createState({ provider, redirectTo });
+  const role = req.query?.role === 'brand' ? 'brand' : 'creator';
+  const isDev = process.env.NODE_ENV !== 'production' && process.env.NODE_ENV !== 'test';
+  const mockEnabled = isDev || process.env.OAUTH_DEV_MOCK_ENABLED === 'true';
+
+  const { state, codeVerifier } = createState({ provider, redirectTo, role });
 
   if (provider === 'google') {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    if (!clientId) return res.status(500).json({ ok: false, error: 'Google OAuth not configured.' });
+    if (!clientId) {
+      if (mockEnabled) {
+        return handleDevMockOAuth(req, res, 'google', redirectTo, role);
+      }
+      return res.status(500).json({ ok: false, error: 'Google OAuth not configured.' });
+    }
 
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     url.searchParams.set('client_id', clientId);
@@ -53,9 +112,14 @@ export function oauthStart(req, res) {
 
   if (provider === 'facebook') {
     const clientId = process.env.FACEBOOK_CLIENT_ID;
-    if (!clientId) return res.status(500).json({ ok: false, error: 'Facebook OAuth not configured.' });
+    if (!clientId) {
+      if (mockEnabled) {
+        return handleDevMockOAuth(req, res, 'facebook', redirectTo, role);
+      }
+      return res.status(500).json({ ok: false, error: 'Facebook OAuth not configured.' });
+    }
 
-    const url = new URL('https://www.facebook.com/v19.0/dialog/oauth');
+    const url = new URL('https://www.facebook.com/v26.0/dialog/oauth');
     url.searchParams.set('client_id', clientId);
     url.searchParams.set('redirect_uri', config.redirectUri);
     url.searchParams.set('state', state);
@@ -66,7 +130,12 @@ export function oauthStart(req, res) {
 
   if (provider === 'apple') {
     const clientId = process.env.APPLE_CLIENT_ID;
-    if (!clientId) return res.status(500).json({ ok: false, error: 'Apple OAuth not configured.' });
+    if (!clientId) {
+      if (mockEnabled) {
+        return handleDevMockOAuth(req, res, 'apple', redirectTo, role);
+      }
+      return res.status(500).json({ ok: false, error: 'Apple OAuth not configured.' });
+    }
 
     const url = new URL('https://appleid.apple.com/auth/authorize');
     url.searchParams.set('client_id', clientId);
@@ -85,6 +154,12 @@ export async function oauthCallback(req, res) {
   const provider = String(req.params?.provider || '').toLowerCase();
   const config = requireProvider(provider);
   if (!config) return res.status(400).json({ ok: false, error: 'Unsupported provider.' });
+  if (!config.redirectUri) {
+    return res.status(500).json({
+      ok: false,
+      error: `${config.missingVariable} is required for ${provider} OAuth in production.`,
+    });
+  }
 
   const body = req.body ?? {};
   const query = req.query ?? {};
@@ -148,10 +223,13 @@ export async function oauthCallback(req, res) {
       providerId = String(payload?.sub || '');
     }
 
-    const result = await findOrCreateOAuthUser({ provider, providerId, email });
+    const result = await findOrCreateOAuthUser({ provider, providerId, email, role: stateEntry.role });
     if (!result.ok) return res.status(result.status).json({ ok: false, error: result.error });
 
     const appBaseUrl = getAppBaseUrl();
+    if (!appBaseUrl) {
+      return res.status(500).json({ ok: false, error: 'APP_BASE_URL is required in production.' });
+    }
     const redirectTo = encodeURIComponent(stateEntry.redirectTo || '/dashboard');
     const authCode = createAuthCode({ token: result.token });
     return res.redirect(`${appBaseUrl}/auth/callback?code=${encodeURIComponent(authCode)}&redirect=${redirectTo}`);

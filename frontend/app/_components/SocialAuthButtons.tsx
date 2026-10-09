@@ -87,26 +87,44 @@ function safeRedirect(path: string): string {
   return path.startsWith('/') && !path.startsWith('//') ? path : '/dashboard';
 }
 
+
+export function SocialAuthButtons({ redirect = '/dashboard', role }: { redirect?: string; role?: string }) {
+  const params = new URLSearchParams();
+  // Always set redirect, using safeRedirect for security
+  params.set('redirect', safeRedirect(redirect || '/dashboard'));
+  // Only set role if it's provided
+  if (role) params.set('role', role);
+
+  const query = `?${params.toString()}`;
+// Only allow same-site relative paths (blocks "//evil.com" and "https://...").
+function safeRedirect(path: string): string {
+  return path.startsWith('/') && !path.startsWith('//') ? path : '/dashboard';
+}
+
 export function SocialAuthButtons({ redirect = '/dashboard' }: { redirect?: string }) {
   const encoded = encodeURIComponent(safeRedirect(redirect));
+
+
+  const query = params.toString() ? `?${params.toString()}` : '';
+
 
   return (
     <div className="grid grid-cols-1 gap-2">
       <Button
         variant="facebook"
-        href={`/api/auth/oauth/facebook/start?redirect=${encoded}`}
+        href={`/api/auth/oauth/facebook/start${query}`}
         label="Continue with Facebook"
         icon={<IconFacebook />}
       />
       <Button
         variant="google"
-        href={`/api/auth/oauth/google/start?redirect=${encoded}`}
+        href={`/api/auth/oauth/google/start${query}`}
         label="Continue with Google"
         icon={<IconGoogle />}
       />
       <Button
         variant="apple"
-        href={`/api/auth/oauth/apple/start?redirect=${encoded}`}
+        href={`/api/auth/oauth/apple/start${query}`}
         label="Continue with Apple"
         icon={<IconApple />}
       />

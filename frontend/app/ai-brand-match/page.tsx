@@ -52,10 +52,10 @@ export default function BrandMatch() {
         min_followers: parseInt(form.min_followers, 10) || 1000,
         creators: [],
       };
-      const res = await aiApi.match(data);
+      const res = await aiApi.match<MatchResponse>(data);
       setResults(res.data);
-    } catch (err: any) {
-      setError(err?.message || 'Matching failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Matching failed');
     } finally {
       setLoading(false);
     }

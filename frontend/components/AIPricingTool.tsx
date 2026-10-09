@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { apiUrl } from '../lib/api';
 
 interface PricingSuggestion {
   reel: number;
@@ -21,10 +22,8 @@ export default function AIPricingTool() {
     e.preventDefault();
     setLoading(true);
 
-    const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || '';
-
     try {
-      const response = await fetch(`${apiBase}/api/pricing-suggestion`, {
+      const response = await fetch(apiUrl('/api/pricing-suggestion'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ followers, niche, engagement }),

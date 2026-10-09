@@ -16,12 +16,13 @@ export function pkceChallenge(verifier) {
   return base64Url(hash);
 }
 
-export function createState({ provider, redirectTo }) {
+export function createState({ provider, redirectTo, role }) {
   const state = base64Url(crypto.randomBytes(18));
   const codeVerifier = createPkceVerifier();
   store.set(state, {
     provider,
     redirectTo,
+    role,
     codeVerifier,
     expiresAt: Date.now() + STATE_TTL_MS,
   });

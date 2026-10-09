@@ -18,7 +18,7 @@ export default function CreatorDashboard() {
       try {
         const me = await fetchMe();
         if (me.role !== 'creator' && me.role !== 'admin') {
-          return router.replace('/dashboard');
+          return router.replace('/dashboard/brand');
         }
         setUser(me);
         const active = await fetchActiveCampaigns().catch(() => []);

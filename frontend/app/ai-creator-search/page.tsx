@@ -59,10 +59,10 @@ export default function CreatorSearch() {
         hashtags: form.hashtags.split(',').map((tag) => tag.trim()).filter(Boolean),
         post_frequency: parseFloat(form.post_frequency) || 0,
       };
-      const res = await aiApi.analyze(data);
+      const res = await aiApi.analyze<AnalyzeResponse>(data);
       setResult(res.data);
-    } catch (err: any) {
-      setError(err?.message || 'Analysis failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Analysis failed');
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 import { apiUrl } from './api';
 
-export type UserRole = 'creator' | 'brand' | 'admin';
+export type UserRole = 'creator' | 'brand' | 'agency' | 'admin';
 
 export interface AuthUser {
   id: string;
@@ -11,6 +11,7 @@ export interface AuthUser {
   profile?: {
     displayName?: string;
     companyName?: string;
+    agencyName?: string;
     creatorCategory?: string;
     website?: string;
     location?: string;
@@ -18,6 +19,13 @@ export interface AuthUser {
     phone?: string;
     primaryPlatform?: string;
     teamSize?: string;
+    rosterSize?: string;
+    pricingPerPost?: string;
+    budgetRange?: string;
+    targetAudience?: string;
+    campaignGoals?: string[];
+    managementScope?: string;
+    billingSetup?: string;
     socialHandles?: {
       instagram?: string;
       tiktok?: string;
@@ -28,6 +36,7 @@ export interface AuthUser {
     };
   };
   onboarding?: {
+    isCompleted?: boolean;
     completedSteps?: string[];
     profileCompletion?: number;
     signupSource?: string;
@@ -36,18 +45,62 @@ export interface AuthUser {
 }
 
 const TOKEN_KEY = 'collabkar_token';
+const AUTH_REQUEST_TIMEOUT_MS = 65_000;
 
-export function getToken() {
+async function authRequest(path: string, init: RequestInit) {
+  try {
+    return await fetch(apiUrl(path), {
+      ...init,
+      signal: AbortSignal.timeout(AUTH_REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'name' in error &&
+      (error.name === 'TimeoutError' || error.name === 'AbortError')
+    ) {
+      throw new Error('The server took too long to respond. Please try again.');
+    }
+    throw new Error('Unable to reach the server. Check your connection and try again.');
+  }
+}
+
+function getCookie(name: string): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(new RegExp('(^|;\\s*)(' + name + ')=([^;]*)'));
+  return match ? decodeURIComponent(match[3]) : null;
+}
+
+export function getToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return window.localStorage.getItem(TOKEN_KEY);
+  return window.localStorage.getItem(TOKEN_KEY) || getCookie(TOKEN_KEY);
 }
 
 export function setToken(token: string) {
+  if (typeof window === 'undefined') return;
   window.localStorage.setItem(TOKEN_KEY, token);
+  document.cookie = `${TOKEN_KEY}=${encodeURIComponent(token)}; path=/; max-age=604800; SameSite=Lax`;
 }
 
 export function clearToken() {
+  if (typeof window === 'undefined') return;
   window.localStorage.removeItem(TOKEN_KEY);
+  document.cookie = `${TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+}
+
+export function getDecodedTokenPayload(): { sub?: string; role?: UserRole; email?: string } | null {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = atob(base64);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchMe(): Promise<AuthUser> {
@@ -65,7 +118,7 @@ export async function fetchMe(): Promise<AuthUser> {
 }
 
 export async function login(identifier: string, password: string) {
-  const response = await fetch(apiUrl('/api/auth/login'), {
+  const response = await authRequest('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ identifier, password }),
@@ -73,7 +126,7 @@ export async function login(identifier: string, password: string) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const error = new Error(data?.error || 'login_failed') as Error & { code?: string; requiresEmailVerification?: boolean };
+    const error = new Error(data?.error || `Sign-in failed (HTTP ${response.status}). Please try again.`) as Error & { code?: string; requiresEmailVerification?: boolean };
     if (data?.requiresEmailVerification) {
       error.code = 'email_not_verified';
       error.requiresEmailVerification = true;
@@ -88,17 +141,19 @@ export async function login(identifier: string, password: string) {
 export async function signup(
   email: string,
   password: string,
-  role: 'creator' | 'brand',
+  role: 'creator' | 'brand' | 'agency',
   profile: AuthUser['profile']
 ) {
-  const response = await fetch(apiUrl('/api/auth/signup'), {
+  const response = await authRequest('/api/auth/signup', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, role, profile }),
   });
 
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data?.error || 'signup_failed');
+  if (!response.ok) {
+    throw new Error(data?.error || `Account creation failed (HTTP ${response.status}). Please try again.`);
+  }
 
   if (typeof data?.token === 'string' && data.token) setToken(data.token);
   return {
@@ -106,6 +161,25 @@ export async function signup(
     requiresEmailVerification: Boolean(data?.requiresEmailVerification),
     verificationEmailSent: data?.verificationEmailSent !== false,
   };
+}
+
+export async function updateUserProfile(profile: AuthUser['profile']) {
+  const token = getToken();
+  if (!token) throw new Error('missing_token');
+
+  const response = await fetch(apiUrl('/api/auth/profile'), {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ profile }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error || 'profile_update_failed');
+
+  return data.user as AuthUser;
 }
 
 export async function verifyEmail(token: string) {

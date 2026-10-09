@@ -89,7 +89,7 @@ export async function exchangeFacebookCode({ code, redirectUri }) {
   const clientSecret = process.env.FACEBOOK_CLIENT_SECRET;
   if (!clientId || !clientSecret) throw new Error('facebook_oauth_env_missing');
 
-  const url = new URL('https://graph.facebook.com/v19.0/oauth/access_token');
+  const url = new URL('https://graph.facebook.com/v26.0/oauth/access_token');
   url.searchParams.set('client_id', clientId);
   url.searchParams.set('client_secret', clientSecret);
   url.searchParams.set('redirect_uri', redirectUri);
@@ -98,7 +98,7 @@ export async function exchangeFacebookCode({ code, redirectUri }) {
 }
 
 export async function fetchFacebookProfile(accessToken) {
-  const url = new URL('https://graph.facebook.com/me');
+  const url = new URL('https://graph.facebook.com/v26.0/me');
   url.searchParams.set('fields', 'id,name,email');
   url.searchParams.set('access_token', accessToken);
   return getJson(url.toString());

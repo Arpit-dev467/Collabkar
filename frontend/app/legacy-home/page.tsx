@@ -394,7 +394,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL || '';
+      const apiBase = (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4001').replace(/\/+$/, '');
       const response = await fetch(`${apiBase}/api/waitlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1022,5 +1022,4 @@ export default function Home() {
     </div>
   );
 }
-
 

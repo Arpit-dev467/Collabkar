@@ -46,6 +46,7 @@ function AuthCallbackContent() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code }),
+          signal: AbortSignal.timeout(65_000),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data?.error || 'oauth_exchange_failed');
@@ -53,7 +54,14 @@ function AuthCallbackContent() {
         setToken(String(data.token));
         router.replace(redirectTo);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'OAuth exchange failed');
+        const timedOut = err instanceof Error && (err.name === 'TimeoutError' || err.name === 'AbortError');
+        setError(
+          timedOut
+            ? 'The server took too long to respond. Please try signing in again.'
+            : err instanceof Error
+              ? err.message
+              : 'Unable to complete sign-in. Please try again.'
+        );
       }
     };
 

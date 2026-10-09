@@ -39,10 +39,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([aiApi.health(), aiApi.dashboard()])
+    Promise.all([aiApi.health<HealthResponse>(), aiApi.dashboard<{ snapshot?: DashboardSnapshot } & DashboardSnapshot>()])
       .then(([healthRes, dashboardRes]) => {
         setHealth(healthRes.data);
-        setSnapshot(dashboardRes.data?.snapshot ?? dashboardRes.data);
+        setSnapshot(dashboardRes.data.snapshot ?? dashboardRes.data);
       })
       .finally(() => setLoading(false));
   }, []);

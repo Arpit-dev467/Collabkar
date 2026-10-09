@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { aiApi } from '../../lib/api';
+import { aiApi, apiUrl } from '../../lib/api';
 import AISidebar from '../components/AISidebar';
 
 type QueueResult = {
@@ -27,8 +27,8 @@ export default function ScraperControl() {
     try {
       const res = await aiApi.queueScrape(list);
       setQueueResult(res.data);
-    } catch (err: any) {
-      setError(err?.message || 'Queue failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Queue failed');
     } finally {
       setLoadingQueue(false);
     }
@@ -38,7 +38,7 @@ export default function ScraperControl() {
     setLoadingStatus(true);
     setError(null);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/api/ai/scraper/status`);
+      const res = await fetch(apiUrl('/api/ai/scraper/status'));
       const data = await res.json();
       setStatus(data);
     } catch {

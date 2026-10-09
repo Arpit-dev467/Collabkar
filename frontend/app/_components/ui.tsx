@@ -2,16 +2,17 @@
 
 import type { ReactNode } from 'react';
 
-export function Card({ children }: { children: ReactNode }) {
-  return <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white/80 shadow-sm backdrop-blur p-6">{children}</div>;
+export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+  const widthClass = className.includes('max-w-') ? '' : 'max-w-md';
+  return <div className={`w-full ${widthClass} rounded-2xl border border-gray-200 bg-white/80 shadow-sm backdrop-blur p-6 ${className}`}>{children}</div>;
 }
 
-export function Title({ children }: { children: ReactNode }) {
-  return <h1 className="text-2xl font-semibold tracking-tight text-gray-900">{children}</h1>;
+export function Title({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <h1 className={`text-2xl font-semibold tracking-tight text-gray-900 ${className}`}>{children}</h1>;
 }
 
-export function SubtleText({ children }: { children: ReactNode }) {
-  return <p className="text-sm text-gray-600">{children}</p>;
+export function SubtleText({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <p className={`text-sm text-gray-600 ${className}`}>{children}</p>;
 }
 
 export function Divider({ label = 'or' }: { label?: string }) {

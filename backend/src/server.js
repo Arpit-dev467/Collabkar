@@ -28,6 +28,26 @@ const REQUIRED_IN_PRODUCTION = [
 ];
 
 if (isProd) {
+  const productionEnvVars = [
+    'DATABASE_URL',
+    'AUTH_JWT_SECRET',
+    'APP_BASE_URL',
+    'CORS_ORIGINS',
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_SECRET',
+    'GOOGLE_REDIRECT_URI',
+    'RESEND_API_KEY',
+    'RESEND_FROM_EMAIL',
+  ];
+  for (const name of productionEnvVars) {
+    if (!process.env[name]?.trim()) {
+      console.warn(`Missing production environment variable: ${name}`);
+    }
+  }
+  if (process.env.AUTH_JWT_SECRET && process.env.AUTH_JWT_SECRET.length < 32) {
+    console.warn('Production environment variable AUTH_JWT_SECRET must contain at least 32 characters.');
+  }
+
   const missing = REQUIRED_IN_PRODUCTION.filter((name) => !process.env[name]);
   if (missing.length > 0) {
     console.error(`Missing required environment variables: ${missing.join(', ')}`);
@@ -51,14 +71,25 @@ if (isProd) {
 /* ------------------------------------------------------------------ */
 
 async function testDatabaseConnection() {
-  try {
-    await db.execute('SELECT 1');
-    console.log('PostgreSQL database connected successfully.');
-  } catch (error) {
-    console.error('PostgreSQL database connection failed:', error?.message || error);
-    if (isProd) process.exit(1);
-    console.warn('Continuing without a database (non-production mode).');
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    try {
+      await db.execute('SELECT 1');
+      console.log('PostgreSQL database connected successfully.');
+      return true;
+    } catch (error) {
+      console.error(
+        'PostgreSQL database connection failed:',
+        error?.message,
+        error?.cause?.message || error?.cause
+      );
+      if (attempt < 5) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    }
   }
+
+  console.warn('Continuing without a database after 5 failed connection attempts.');
+  return false;
 }
 
 /* ------------------------------------------------------------------ */
@@ -66,6 +97,10 @@ async function testDatabaseConnection() {
 /* ------------------------------------------------------------------ */
 
 const app = express();
+app.get('/health', (_req, res) => {
+  res.status(200).type('text/plain').send('ok');
+});
+
 app.disable('x-powered-by');
 
 // Needed so rate limiting sees the real client IP behind Vercel, Render, Nginx, etc.
@@ -76,21 +111,16 @@ app.set('trust proxy', Number.isNaN(Number(trustProxy)) ? trustProxy : Number(tr
 /* CORS                                                                */
 /* ------------------------------------------------------------------ */
 
-const corsOriginRaw = process.env.CORS_ORIGIN;
-const corsOrigin = corsOriginRaw
-  ? corsOriginRaw.split(',').map((value) => value.trim()).filter(Boolean)
-  : (origin, callback) => {
-      if (!origin) return callback(null, true);
-      if (/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) return callback(null, true);
-      return callback(null, false);
-    };
+const allowedOrigins =
+  process.env.CORS_ORIGINS === undefined
+    ? ['http://localhost:3000']
+    : process.env.CORS_ORIGINS.split(',').map((value) => value.trim()).filter(Boolean);
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
 /* ------------------------------------------------------------------ */
 
-// Removes Mongo operator keys ($ne, $gt, ...) and prototype-pollution keys
-// from user input so it cannot change the meaning of a database query.
+// Prevents unsafe property names from reaching request handlers.
 const BLOCKED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
 
 function stripOperators(value) {
@@ -98,7 +128,7 @@ function stripOperators(value) {
   if (value && typeof value === 'object') {
     const clean = {};
     for (const [key, inner] of Object.entries(value)) {
-      if (key.startsWith('$') || key.includes('.') || BLOCKED_KEYS.has(key)) continue;
+      if (key.includes('.') || BLOCKED_KEYS.has(key)) continue;
       clean[key] = stripOperators(inner);
     }
     return clean;
@@ -120,10 +150,6 @@ function sanitizeInput(req, _res, next) {
     // If query cannot be replaced in this Express version, continue without it.
   }
   next();
-}
-
-function requireDatabase(_req, res, next) {
-  return next();
 }
 
 function makeLimiter({ windowMs, max, message, skipSuccessfulRequests = false }) {
@@ -169,7 +195,7 @@ const waitlistLimiter = makeLimiter({
 /* ------------------------------------------------------------------ */
 
 app.use(securityHeaders());
-app.use(cors({ origin: corsOrigin, credentials: true }));
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '200kb' }));
 app.use(express.urlencoded({ extended: false, limit: '200kb' }));
 app.use(sanitizeInput);
@@ -179,17 +205,13 @@ app.use('/api', apiLimiter);
 /* Routes                                                              */
 /* ------------------------------------------------------------------ */
 
-app.get('/health', (_req, res) => {
-  res.status(200).send("ok server is awake");
-});
-
 const combinedAiRouter = express.Router();
 combinedAiRouter.use(aiRoutes);
 combinedAiRouter.use(aiRouter);
 
-app.use('/api/influencer', requireDatabase, influencerRoutes);
+app.use('/api/influencer', influencerRoutes);
 app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/campaigns', requireDatabase, campaignRoutes);
+app.use('/api/campaigns', campaignRoutes);
 app.use('/api/ai', aiLimiter, combinedAiRouter);
 
 app.post('/api/waitlist', waitlistLimiter, async (req, res) => {
@@ -285,8 +307,8 @@ async function start() {
   await testDatabaseConnection();
 
   const port = Number(process.env.PORT || 4001);
-  server = app.listen(port, () => {
-    console.log(`Backend listening on http://localhost:${port}`);
+  server = app.listen(port, '0.0.0.0', () => {
+    console.log(`Backend listening on 0.0.0.0:${port}`);
   });
 
   server.on('error', (error) => {
